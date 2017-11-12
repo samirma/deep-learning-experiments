@@ -73,14 +73,6 @@ def get_image(image_path, width, height, mode):
     """
     image = Image.open(image_path)
 
-    if image.size != (width, height):  # HACK - Check if image is from the CELEBA dataset
-        # Remove most pixels that aren't part of a face
-        face_width = face_height = 108
-        j = (image.size[0] - face_width) // 2
-        i = (image.size[1] - face_height) // 2
-        #image = image.crop([j, i, j + face_width, i + face_height])
-        image = image.resize([width, height], Image.BILINEAR)
-
     return np.array(image.convert(mode))
 
 
@@ -178,7 +170,7 @@ class Dataset(object):
     """
     Dataset
     """
-    def __init__(self, dataset_name, data_files):
+    def __init__(self, data_files):
         """
         Initalize the class
         :param dataset_name: Database name
@@ -186,16 +178,11 @@ class Dataset(object):
         """
         DATASET_CELEBA_NAME = 'celeba'
         DATASET_MNIST_NAME = 'mnist'
-        IMAGE_WIDTH = 28 #54
-        IMAGE_HEIGHT = 28 #72
+        IMAGE_WIDTH = 54
+        IMAGE_HEIGHT = 72
 
-        if dataset_name == DATASET_CELEBA_NAME:
-            self.image_mode = 'RGB'
-            image_channels = 3
-
-        elif dataset_name == DATASET_MNIST_NAME:
-            self.image_mode = 'L'
-            image_channels = 1
+        self.image_mode = 'RGB'
+        image_channels = 3
 
         random.shuffle(data_files)
             

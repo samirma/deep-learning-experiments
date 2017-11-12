@@ -6,44 +6,70 @@ from matplotlib import pyplot
 def leaky_relu(x, alpha=0.1, name='leaky_relu'):
     return tf.maximum(x, alpha * x, name=name)
 
+def conv2d_transpose(inputs, num_outputs, kernel, strides, is_train):
+
+
+    x = tf.layers.conv2d_transpose(inputs, num_outputs, kernel, strides, padding='same',
+                                    kernel_initializer=tf.contrib.layers.xavier_initializer())
+    
+    x = tf.layers.batch_normalization(x, training=is_train)
+    
+    x = leaky_relu(x)
+    
+    return x
+
+
+def conv2d(inputs, num_outputs, kernel, strides):
+
+    x = tf.layers.conv2d(inputs, num_outputs, kernel, strides, padding='same',
+                          kernel_initializer=tf.contrib.layers.xavier_initializer())
+    
+    x = tf.layers.batch_normalization(x, training=True)
+    
+    x = leaky_relu(x)
+        
+    return x
+
 class NeuralNetwork:
     
-
     def model_inputs(self, image_width, image_height, image_channels, z_dim):
         inputs_real   = tf.placeholder(tf.float32, (None, image_width, image_height, image_channels), name='input_real')
         inputs_z      = tf.placeholder(tf.float32, (None, z_dim), name='input_z')
         learning_rate = tf.placeholder(tf.float32, name='learning_rate')
-        
-        print (inputs_real.shape)
 
         return inputs_real, inputs_z, learning_rate
 
-    def discriminator(self, images, reuse=False):
+    def discriminator(self, x, reuse=False):
         with tf.variable_scope('discriminator', reuse=reuse):
-            # Input layer is 28x28x3
-            x1 = tf.layers.conv2d(images, 64, 5, strides=2, padding='same',
-                                  kernel_initializer=tf.contrib.layers.xavier_initializer())
-            relu1 = leaky_relu(x1)
 
-            x2 = tf.layers.conv2d(relu1, 128, 5, strides=2, padding='same',
-                                  kernel_initializer=tf.contrib.layers.xavier_initializer())
-            bn2 = tf.layers.batch_normalization(x2, training=True)
-            relu2 = leaky_relu(bn2)
-
-            x3 = tf.layers.conv2d(relu2, 256, 5, strides=2, padding='same',
-                                 kernel_initializer=tf.contrib.layers.xavier_initializer())
-            bn3 = tf.layers.batch_normalization(x3, training=True)
-            relu3 = leaky_relu(bn3)
+            x = conv2d(x, 64, 5, 2)
+            
+            x = conv2d(x, 128, 5, 2)
+            
+            x = conv2d(x, 256, 5, 2)
+            
+            x = conv2d(x, 512, 5, 2)
 
             # Flatten it
-            flat = tf.reshape(relu3, (-1, 4*4*256))
+            x = tf.contrib.layers.flatten(x)
+            
+            x = tf.nn.dropout(x, 0.7)
+            
+            x = tf.layers.dense(x, 256, kernel_initializer=tf.contrib.layers.xavier_initializer())
+            
+            x = leaky_relu(x)
+            
+            x = tf.nn.dropout(x, 0.7)
+            
+            x = tf.layers.dense(x, 256, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
-            # Apply some dropout
-            layer_dropout = tf.nn.dropout(flat, 0.7)
+            x = leaky_relu(x)
+            
+            x = tf.layers.dense(x, 256, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
-            logits = tf.layers.dense(layer_dropout, 1,
-                                    kernel_initializer=tf.contrib.layers.xavier_initializer())
+            x = leaky_relu(x)
 
+            logits = tf.layers.dense(x, 1, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
             out = tf.sigmoid(logits)
 
@@ -54,43 +80,38 @@ class NeuralNetwork:
     def generator(self, z, out_channel_dim, is_train=True):
         with tf.variable_scope('generator', reuse=not is_train):
             # First fully connected layer
-            x1 = tf.layers.dense(z, 7*7*512)
-            # Reshape it to start the convolutional stack
-            x1 = tf.reshape(x1, (-1, 7, 7, 512))
-            x1 = tf.layers.batch_normalization(x1, training=is_train)
-            x1 = leaky_relu(x1)
-            # 7x7x512
-
-            # Apply some dropout
-            layer_dropout = tf.nn.dropout(x1, 0.5)        
-
-            x2 = tf.layers.conv2d_transpose(layer_dropout, 256, 5, strides=2, padding='same',
+            h = 72 
+            w = 54
+            
+            kernel = 5
+            
+            strides = 3
+            
+            x = tf.layers.dense(z, 6*2*1024)
+            
+            x = tf.reshape(x, (-1, 6, 2, 1024))
+            
+            #x = conv2d_transpose(x, 1024, kernel, strides, is_train)
+            
+            #x = conv2d_transpose(x, 512, kernel, strides, is_train)
+            
+            x = conv2d_transpose(x, 256, kernel, strides, is_train)
+            
+            x = conv2d_transpose(x, 128, kernel, strides, is_train)
+            
+            x = conv2d_transpose(x, 64, kernel, strides, is_train)
+            
+            x = tf.layers.conv2d_transpose(x, out_channel_dim, kernel, strides=1, padding='same',
                                            kernel_initializer=tf.contrib.layers.xavier_initializer())
-            x2 = tf.layers.batch_normalization(x2, training=is_train)
-            x2 = leaky_relu(x2)
-            # 14x14x256
-
-            # Apply some dropout
-            layer_dropout1 = tf.nn.dropout(x2, 0.5)        
-
-
-            x3 = tf.layers.conv2d_transpose(layer_dropout1, 128, 5, strides=2, padding='same',
-                                           kernel_initializer=tf.contrib.layers.xavier_initializer())
-            x3 = tf.layers.batch_normalization(x3, training=is_train)
-            x3 = leaky_relu(x3)
-            # 28x28x128
-
-            # Apply some dropout
-            layer_dropout2 = tf.nn.dropout(x3, 0.5)         
+            
+            x = tf.image.resize_images(x, [h, w])
 
             # Output Layer
-            logits = tf.layers.conv2d_transpose(layer_dropout2, out_channel_dim, 5, strides=1, padding='same',
+            x = tf.layers.conv2d_transpose(x, out_channel_dim, kernel, strides=1, padding='same',
                                                kernel_initializer=tf.contrib.layers.xavier_initializer())
-            # 28x28x3
-
-            out = tf.tanh(logits)
+            out = tf.tanh(x)
             
-            return out  
+            return out   
 
     def model_loss(self, input_real, input_z, out_channel_dim):
         g_model = self.generator(input_z, out_channel_dim)
@@ -98,7 +119,7 @@ class NeuralNetwork:
         d_model_fake, d_logits_fake = self.discriminator(g_model, reuse=True)
 
         d_loss_real = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_real, labels=tf.ones_like(d_model_real) * (1 - 0.01)))
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_real, labels=tf.ones_like(d_model_real)))
         d_loss_fake = tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_fake, labels=tf.zeros_like(d_model_fake)))
         g_loss = tf.reduce_mean(
@@ -150,7 +171,7 @@ class NeuralNetwork:
         
         _, image_width, image_height, image_channels = data_shape
         # Set model inputs
-        input_real, input_z, learn_rate = self.model_inputs(image_width, image_height, image_channels, z_dim)
+        input_real, input_z, learn_rate = self.model_inputs(image_height, image_width, image_channels, z_dim)
         # Set model loss
         d_loss, g_loss = self.model_loss(input_real, input_z, image_channels)
         # Set model optimization
@@ -158,29 +179,37 @@ class NeuralNetwork:
         
         samples, losses = [], []
         steps    = 0    
-        print_at = 50
-        show_at  = 100
+        print_at = 100
+        show_at  = 1000
         
-        images_to_show = 10
+        images_to_show = 4
         
         saver = tf.train.Saver()
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             for epoch_i in range(epoch_count):
                 for batch_images in get_batches(batch_size):
-                    # TODO: Train Model
+                    
+                    d_iters = 3
+                    g_iters = 2
+                    
                     steps += 1
                     
                     batch_images = batch_images * 2
                     
                     # Sample random noise for G
-                    sample_z = np.random.uniform(-1, 1, size=(batch_size, z_dim))
+                    sample_z = np.random.uniform(-0.51, 0.51, size=(batch_size, z_dim))
 
                     # Run optimizers
-                    _ = sess.run(d_opt, feed_dict={input_real: batch_images, input_z: sample_z, learn_rate: learning_rate})
-                    _ = sess.run(g_opt, feed_dict={input_z: sample_z, learn_rate: learning_rate}) 
-                
-                                    
+                    for k in range(d_iters):
+                        _ = sess.run(d_opt, feed_dict={input_real: batch_images, input_z: sample_z, learn_rate: learning_rate})
+                    
+                    for k in range(g_iters):
+                        _ = sess.run(g_opt, feed_dict={input_z: sample_z, learn_rate: learning_rate}) 
+                        
+                    if steps == 1:
+                        print("Training started")
+                    
                     if steps % print_at == 0:
                         # At the end of each epoch, get the losses and print them out
                         train_loss_d = d_loss.eval({input_z: sample_z, input_real: batch_images})
