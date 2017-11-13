@@ -106,5 +106,6 @@ download_db.rb
 
 /data
 /input
+/code
 
 *.rb

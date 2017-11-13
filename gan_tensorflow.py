@@ -53,21 +53,23 @@ class NeuralNetwork:
             # Flatten it
             x = tf.contrib.layers.flatten(x)
             
-            x = tf.nn.dropout(x, 0.7)
+            x = tf.nn.dropout(x, 0.5)
             
-            x = tf.layers.dense(x, 256, kernel_initializer=tf.contrib.layers.xavier_initializer())
+            x = tf.layers.dense(x, 512, kernel_initializer=tf.contrib.layers.xavier_initializer())
             
             x = leaky_relu(x)
             
-            x = tf.nn.dropout(x, 0.7)
-            
-            x = tf.layers.dense(x, 256, kernel_initializer=tf.contrib.layers.xavier_initializer())
-
-            x = leaky_relu(x)
+            x = tf.nn.dropout(x, 0.5)
             
             x = tf.layers.dense(x, 256, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
             x = leaky_relu(x)
+            
+            x = tf.layers.dense(x, 128, kernel_initializer=tf.contrib.layers.xavier_initializer())
+
+            x = leaky_relu(x)
+            
+            x = tf.nn.dropout(x, 0.5)
 
             logits = tf.layers.dense(x, 1, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
@@ -87,7 +89,7 @@ class NeuralNetwork:
             
             strides = 3
             
-            x = tf.layers.dense(z, 6*2*1024)
+            x = tf.layers.dense(z, 12*1024)
             
             x = tf.reshape(x, (-1, 6, 2, 1024))
             
@@ -95,20 +97,18 @@ class NeuralNetwork:
             
             #x = conv2d_transpose(x, 512, kernel, strides, is_train)
             
-            x = conv2d_transpose(x, 256, kernel, strides, is_train)
+            #x = conv2d_transpose(x, 256, kernel, strides, is_train)
             
             x = conv2d_transpose(x, 128, kernel, strides, is_train)
             
             x = conv2d_transpose(x, 64, kernel, strides, is_train)
             
-            x = tf.layers.conv2d_transpose(x, out_channel_dim, kernel, strides=1, padding='same',
-                                           kernel_initializer=tf.contrib.layers.xavier_initializer())
+            x = conv2d_transpose(x, 32, kernel, strides, is_train)
             
             x = tf.image.resize_images(x, [h, w])
 
             # Output Layer
-            x = tf.layers.conv2d_transpose(x, out_channel_dim, kernel, strides=1, padding='same',
-                                               kernel_initializer=tf.contrib.layers.xavier_initializer())
+            x = tf.layers.conv2d_transpose(x, out_channel_dim, kernel, strides=1, padding='same')
             out = tf.tanh(x)
             
             return out   
@@ -179,8 +179,8 @@ class NeuralNetwork:
         
         samples, losses = [], []
         steps    = 0    
-        print_at = 100
-        show_at  = 1000
+        print_at = 500
+        show_at  = 10000
         
         images_to_show = 4
         
@@ -198,7 +198,7 @@ class NeuralNetwork:
                     batch_images = batch_images * 2
                     
                     # Sample random noise for G
-                    sample_z = np.random.uniform(-0.51, 0.51, size=(batch_size, z_dim))
+                    sample_z = np.random.uniform(-1, 1, size=(batch_size, z_dim))
 
                     # Run optimizers
                     for k in range(d_iters):
