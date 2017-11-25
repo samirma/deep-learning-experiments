@@ -114,17 +114,23 @@ class NeuralNetwork:
             return out   
 
     def model_loss(self, input_real, input_z, out_channel_dim):
+        
         g_model = self.generator(input_z, out_channel_dim)
+        
         d_model_real, d_logits_real = self.discriminator(input_real)
         d_model_fake, d_logits_fake = self.discriminator(g_model, reuse=True)
 
-        d_loss_real = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_real, labels=tf.ones_like(d_model_real)))
-        d_loss_fake = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_fake, labels=tf.zeros_like(d_model_fake)))
+        # Generator
         g_loss = tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_fake, labels=tf.ones_like(d_model_fake)))
 
+        d_loss_real = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_real, labels=tf.ones_like(d_model_real)))
+        
+        d_loss_fake = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_fake, labels=tf.zeros_like(d_model_fake)))
+        
+        # Discriminator
         d_loss = d_loss_real + d_loss_fake
 
         return d_loss, g_loss
