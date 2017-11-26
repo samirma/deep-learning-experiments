@@ -1,6 +1,8 @@
 # Deep Learning Experiments
 
-Simplest neuron represendation ever: neuron.ipynb
+* neuron.ipynb
+
+Simplest neuron represendation ever
 
 * fashion_gan.ipynb
 
