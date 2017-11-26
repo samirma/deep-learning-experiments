@@ -21,7 +21,7 @@
 |Ruby script to download and parse all pull request from a Git Hub repository  |
 
 ```
-ruby pull_downloader.rb useranme password git_user/git_repo If the (optional)
+ruby pull_downloader.rb useranme password git_user/git_repo pull_request_id
 ```
 
 If the pull_request_id param is omitted so the script will download/parse all commits from all PRs from the given repository
