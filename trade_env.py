@@ -20,10 +20,10 @@ class TraderEnv():
     }
     
     _allowed = {
-        'flat': {'hold', 'buy'},
-        'bought': {'hold', 'sell'},
-        'ordened_sell': {'hold', 'cancel_sell'},
-        'ordened_buy': {'hold', 'cancel_buy'}
+        _positions['flat']: {'hold', 'buy'},
+        _positions['bought']: {'hold', 'sell'},
+        _positions['ordened_sell']: {'hold', 'cancel_sell'},
+        _positions['ordened_buy']: {'hold', 'cancel_buy'}
     }
 
     def __init__(self, data_generator, spread_coefficients, episode_length=1000, trading_fee=0, time_fee=0, history_length=2):
@@ -131,6 +131,14 @@ class TraderEnv():
     def _handle_close(self, evt):
         self._closed_plot = True
             
+    def is_valid(self, action, position):
+        actions_allowed = _allowed[position]
+        allowed = False
+        for x in actions_allowed:
+            if _actions[x] == action:
+                allowed = True
+        return allowed
+            
     def get_order_value(self):
         ask = self.current["asks"][0]
         bid = self.current["bids"][0]
@@ -165,6 +173,5 @@ class TraderEnv():
 
     def get_output_state(self):
         return self.current
-            
-            
+
             

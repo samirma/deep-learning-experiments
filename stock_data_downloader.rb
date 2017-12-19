@@ -20,10 +20,13 @@ puts "binding events"
 order_book.bind("data") do |data|
   json = JSON.parse(data)
   if amount > 0 
+	max = 19
+	json["bids"] = json["bids"][0..max]
+	json["asks"] = json["asks"][0..max]
   	json["price"] = price
   	json["amount"] = amount
   	json["timestamp"] = timestamp
-  	File.write("#{timestamp}.json", JSON.pretty_generate(json))
+  	File.write("stock_data/#{timestamp}.json", JSON.generate(json))
   end
 end
 

@@ -107,5 +107,6 @@ download_db.rb
 /data
 /input
 /code
+/stock_data
 
 *.rb
