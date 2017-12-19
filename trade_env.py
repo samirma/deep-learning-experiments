@@ -16,10 +16,10 @@ _positions = {
 }
 
 _allowed = {
-    'flat': {'hold', 'buy'},
-    'bought': {'hold', 'sell'},
-    'ordened_sell': {'hold', 'cancel_sell'},
-    'ordened_buy': {'hold', 'cancel_buy'}
+    _positions['flat']: {'hold', 'buy'},
+    _positions['bought']: {'hold', 'sell'},
+    _positions['ordened_sell']: {'hold', 'cancel_sell'},
+    _positions['ordened_buy']: {'hold', 'cancel_buy'}
 }
 
 class TraderEnv():
@@ -62,6 +62,7 @@ class TraderEnv():
         self._data_generator.rewind()
         self._total_reward = 0
         self._total_pnl = 0
+        self.instant_pnl = 0
         self._position = _positions['flat']
         self._entry_price = 0
         self._exit_price = 0
@@ -87,11 +88,11 @@ class TraderEnv():
         done = False
         instant_pnl = 0
         info = {}
-        reward = -self._time_fee
+        self.reward = -self._time_fee
         
         observation = self.get_observation()
         
-        if is_valid(action, self._position):
+        if self.is_valid(action, self._position):
             if action == _actions['buy']:
                 self.send_order_to_buy()
             elif action == _actions['sell']:
@@ -104,64 +105,74 @@ class TraderEnv():
         else:
             info['status'] = 'Invalid action'
             done = True
-            reward = -1000
+            self.reward = -1000
             
-        reward += self.instant_pnl
+        self.reward += self.instant_pnl
         self._total_pnl += self.instant_pnl
-        self._total_reward += reward
+        self._total_reward += self.reward
 
         # Game over logic
-        try:
-            self._prices_history.append(next(self._data_generator))
-        except StopIteration:
+        if self._data_generator.has_next() == False:
             done = True
             info['status'] = 'No more data.'
         if self._iteration >= self._episode_length:
             done = True
             info['status'] = 'Time out.'
             
-        return self.get_state(), reward, done, info
+        return self.get_state(), self.reward, done, info
     
     def _handle_close(self, evt):
         self._closed_plot = True
             
     def get_order_value(self):
-        ask = self.current["asks"][0]
-        bid = self.current["bids"][0]
+        ask = float(self.current["asks"][0][0])
+        bid = float(self.current["bids"][0][0])
         return (ask + bid)/2
             
     def send_order_to_buy(self):
-        self._position = self._positions['ordened_buy']
+        self._position = _positions['ordened_buy']
         self._entry_price = self.get_order_value()
             
     def send_order_to_sell(self):
-        self._position = self._positions['ordened_sell']
+        self._position = _positions['ordened_sell']
         self._exit_price = self.get_order_value()
 
     def cancel_buy(self):
-        self._position = self._positions['flat']
+        self._position = _positions['flat']
 
     def cancel_sell(self):
-        self._position = self._positions['flat']
+        self._position = _positions['flat']
 
     def get_current_state(self):
         return self.current
+
+    def get_current_position(self):
+        return self._position
+    
+    def get_state(self):
+        return [self.current["price"], self.get_current_position()]
         
     def get_observation(self):
         self.current = self._data_generator.next()
         current_price = self.current["price"]
         #Checking for passive position changes
         if self._position == _positions['ordened_sell'] and current_price >= self._exit_price:
-            reward -= self._trading_fee
+            self.reward -= self._trading_fee
             self._position = self._positions['flat']
             self.instant_pnl = self._exit_price - self._entry_price
             self._entry_price = 0
         elif self._position == _positions['ordened_buy'] and current_price <= self._entry_price:
-            reward -= self._trading_fee
+            self.reward -= self._trading_fee
             self._position = _positions['bought']
 
     def get_output_state(self):
         return self.current
-            
-            
+
+    def is_valid(self, action, position):
+        actions_allowed = _allowed[position]
+        allowed = False
+        for x in actions_allowed:
+            if _actions[x] == action:
+                allowed = True
+        return allowed
             
