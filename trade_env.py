@@ -1,4 +1,5 @@
 import numpy as np
+import datetime
 
 _actions = {
     'hold': 0,
@@ -10,8 +11,8 @@ _actions = {
 
 _positions = {
     'flat': 0,
-    'ordened_sell': 1,
-    'ordened_buy': 2,
+    'ordened_buy': 1,
+    'ordened_sell': 2,
     'bought': 3
 }
 
@@ -21,6 +22,17 @@ _allowed = {
     _positions['ordened_sell']: {'hold', 'cancel_sell'},
     _positions['ordened_buy']: {'hold', 'cancel_buy'}
 }
+
+# integer encode input data
+def onehot_encoded (integer_encoded, char_to_int=_positions):
+    # one hot encode
+    onehot_encoded = list()
+    letter = [0 for _ in range(len(char_to_int))]
+    letter[integer_encoded] = 1
+    onehot_encoded.append(letter)
+    
+    return onehot_encoded[0]
+
 
 class TraderEnv():
     """Class for a discrete (buy/hold/sell) spread trading environment.
@@ -71,6 +83,9 @@ class TraderEnv():
         self._action = _actions['hold']
         return observation
 
+    def step_string(self, action_string):
+        return self.step(_actions[action_string])
+    
     def step(self, action):
         """Take an action (buy/sell/hold) and computes the immediate reward.
         Args:
@@ -127,11 +142,14 @@ class TraderEnv():
     def get_order_value(self):
         ask = float(self.current["asks"][0][0])
         bid = float(self.current["bids"][0][0])
-        return (ask + bid)/2
+        result = (ask + bid)/2
+        return result
             
     def send_order_to_buy(self):
+        print("send_order_to_buy")
         self._position = _positions['ordened_buy']
         self._entry_price = self.get_order_value()
+        print(self._entry_price)
             
     def send_order_to_sell(self):
         self._position = _positions['ordened_sell']
@@ -150,17 +168,42 @@ class TraderEnv():
         return self._position
     
     def get_state(self):
-        return [self.current["price"], self.get_current_position()]
+        raw_state = self.current
+        list = []
+        bids = raw_state["bids"]
+        asks = raw_state["asks"]
+
+        price = raw_state["price"]
+
+        #list.append(price)
+        list.append(raw_state["amount"])
+
+        def prepare_orders(orders, multi):
+            for order in orders:
+                list.append((float(order[0])/price) * multi)
+                list.append(float(order[1]))
+
+        prepare_orders(asks, 1)
+        prepare_orders(bids, -1)
+        
+        list.extend(onehot_encoded(self.get_current_position()))
+        
+        return list
         
     def get_observation(self):
         self.current = self._data_generator.next()
         current_price = self.current["price"]
+        
+        #value = datetime.datetime.fromtimestamp(int(self.current["timestamp"]))
+        #print(value.strftime('%Y-%m-%d %H:%M:%S'))
+        
         #Checking for passive position changes
         if self._position == _positions['ordened_sell'] and current_price >= self._exit_price:
             self.reward -= self._trading_fee
-            self._position = self._positions['flat']
+            self._position = _positions['flat']
             self.instant_pnl = self._exit_price - self._entry_price
             self._entry_price = 0
+            print(self.instant_pnl)
         elif self._position == _positions['ordened_buy'] and current_price <= self._entry_price:
             self.reward -= self._trading_fee
             self._position = _positions['bought']
