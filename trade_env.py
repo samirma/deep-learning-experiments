@@ -58,6 +58,7 @@ class TraderEnv():
         self._data_generator = data_generator
         self._first_render = True
         self.total_profite = 0
+        self._iteration = 0
         self._trading_fee = trading_fee
         self._time_fee = time_fee
         self._episode_length = data_generator.max_steps()
@@ -71,7 +72,7 @@ class TraderEnv():
         Returns:
             observation (numpy.array): observation of the state
         """
-        self._iteration = 0
+        
         self._data_generator.rewind()
         self._total_reward = 0
         self._total_pnl = 0
@@ -80,12 +81,12 @@ class TraderEnv():
         self._entry_price = 0
         self._exit_price = 0
         
-        if self.total_profite > 0:
-            print("Reset with: %s on step %s" % (self.total_profite, self._iteration))
+        print("Reset with: %s on step %s" % (self.total_profite, self._iteration))
         self.total_profite = 0
+        self._iteration = 0
         
         self.invalid_actions = 0
-        self.max_invalid_actions = 50
+        self.max_invalid_actions = 1000
                 
         self.get_observation()
         
@@ -131,10 +132,10 @@ class TraderEnv():
         else:
             info['status'] = 'Invalid action'
             self.invalid_actions += 1
-            if self.reward < -100000:
+            if self.max_invalid_actions < self.invalid_actions:
                 print("max_invalid_actions: %s invalid_actions: %s" % (self.max_invalid_actions, self.invalid_actions))
                 done = True
-            self.reward = -100
+            #self.reward += -100
             
         self.reward += self.instant_pnl
         self._total_pnl += self.instant_pnl
@@ -216,23 +217,25 @@ class TraderEnv():
             #print("ordened_buy:: current_price: %s entry_price %s" % (current_price, self._entry_price))
         
         #Checking for passive position changes
-        if self._position == _positions['ordened_sell'] and current_price >= self._exit_price:
+        if self._position == _positions['ordened_sell']:
+            self.reward += 1
+            if current_price <= self._entry_price:
+                self.reward += 1
+                self._position = _positions['flat']
+                profite = self._exit_price - self._entry_price
+                self.total_profite += profite
+                if profite > 0:
+                    print("#######################")
+                    self.instant_pnl = pow(profite+1,2)
+                    print("Profite: %s instant_pnl: %s current reward %s" % (profite, self.instant_pnl, self.reward))
+                    print("#######################")
+                    self._entry_price = 0
+        elif self._position == _positions['ordened_buy']:
             #self.reward -= self._trading_fee
             self.reward += 1
-            self._position = _positions['flat']
-            profite = self._exit_price - self._entry_price
-            self.total_profite += profite
-            if profite > 0:
-                print("#######################")
-                self.instant_pnl = pow(profite+1,2)
-                print("Profite: %s instant_pnl: %s current reward %s" % (profite, self.instant_pnl, self.reward))
-                print("#######################")
-                
-            self._entry_price = 0
-        elif self._position == _positions['ordened_buy'] and current_price <= self._entry_price:
-            #self.reward -= self._trading_fee
-            self.reward += 1
-            self._position = _positions['bought']
+            if current_price <= self._entry_price:
+                self.reward += 1
+                self._position = _positions['bought']
 
     def get_output_state(self):
         return self.current
