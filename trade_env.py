@@ -151,7 +151,8 @@ class TraderEnv():
                 #    self.cancel_buy()
                 #elif action == _actions['cancel_sell']:
                 #    self.cancel_sell()
-                self.reward += 0.1
+                elif action == _actions['hold']:
+                    self.reward += -0.001
             else:
                 self.info['status'] = 'Invalid action'
                 self.invalid_actions += 1
@@ -278,7 +279,7 @@ class TraderEnv():
             self.reward += 1
             if current_price <= self._entry_price:
                 self.info['status'] = 'Order sold'
-                #self.done = True
+                self.done = True
                 self.reward += 0.1
                 self._position = _positions['flat']
                 profite = self._exit_price - self._entry_price
