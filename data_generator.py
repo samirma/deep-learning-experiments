@@ -26,7 +26,7 @@ class DataGenerator:
         if self.is_random:
             self.first_index = int(random.uniform(0, 0.9)*self.steps)
         self.index = self.first_index
-        print("Initial index %s, has_next: %s" % (self.index, self.has_next()))
+        #print("Initial index %s, has_next: %s" % (self.index, self.has_next()))
         
     def has_next(self):
         has_next = ((self.index) < self.steps)

@@ -38,6 +38,11 @@ def onehot_encoded (integer_encoded, char_to_int=_positions):
     return onehot_encoded[0]
 
 
+def print_log(string):
+    log = string
+    #print(log)
+
+
 class TraderEnv():
     """Class for a discrete (buy/hold/sell) spread trading environment.
     """
@@ -93,7 +98,7 @@ class TraderEnv():
         self._iteration = 0
         
         self.invalid_actions = 0
-        self.max_invalid_actions = 100
+        self.max_invalid_actions = 10
                 
         self.get_observation()
         
@@ -121,11 +126,11 @@ class TraderEnv():
                 - info (dict): Contains auxiliary diagnostic information (helpful for debugging, and sometimes learning).
         """
         
-        #print(encoded_action)
+        #print_log(encoded_action)
         #action = argmax(encoded_action)
         action = encoded_action
         
-        #print(action)
+        #print_log(action)
         
         self._action = action
         self._iteration += 1
@@ -150,11 +155,12 @@ class TraderEnv():
             else:
                 self.info['status'] = 'Invalid action'
                 self.invalid_actions += 1
-                #if self.max_invalid_actions < self.invalid_actions:
-                    #self.done = True
-                #    print("max_invalid_actions: %s invalid_actions: %s" % (self.max_invalid_actions, self.invalid_actions))
-                self.reward += -300
-                #print('Invalid action %s' % self.reward)
+                if self.max_invalid_actions < self.invalid_actions:
+                    self.done = True
+                    self.reward += -100
+                    print_log("max_invalid_actions: %s invalid_actions: %s" % (self.max_invalid_actions, self.invalid_actions))
+                else:
+                    self.reward += -0.2
             
         self.reward += self.instant_pnl
         self._total_pnl += self.instant_pnl
@@ -180,8 +186,8 @@ class TraderEnv():
         return state, reward, done, info 
     
     def game_over(self):
-        print("Reward: %s info: %s" % (self.reward, self.info))
-        print("Reseted with: %s on step %s invalid actions %s" % (self.total_profite, self._iteration, self.invalid_actions))
+        print_log("Reward: %s info: %s" % (self.reward, self.info))
+        print_log("Reseted with: %s on step %s invalid actions %s" % (self.total_profite, self._iteration, self.invalid_actions))
         self.reset()
         
     
@@ -244,12 +250,12 @@ class TraderEnv():
         self._positions_history.append(self._position)
         positions = self._positions_history[-self.stage_history_length:]
         for old_positions in positions:
-            #print(onehot_encoded(old_positions))
+            #print_log(onehot_encoded(old_positions))
             list.extend(onehot_encoded(old_positions))
         
         list.extend([self.invalid_actions])
         
-        #print(self._positions_history)
+        #print_log(self._positions_history)
         
         return np.array(list)
         
@@ -259,32 +265,32 @@ class TraderEnv():
         current_price = self.current["price"]
         
         value = datetime.datetime.fromtimestamp(int(self.current["timestamp"]))
-        #print(value.strftime('%Y-%m-%d %H:%M:%S'))
+        #print_log(value.strftime('%Y-%m-%d %H:%M:%S'))
         
         #if self._position == _positions['ordened_sell']:
-            #print("ordened_sell:: current_price: %s _exit_price %s" % (current_price, self._exit_price))
+            #print_log("ordened_sell:: current_price: %s _exit_price %s" % (current_price, self._exit_price))
         
         #if self._position == _positions['ordened_buy']:
-            #print("ordened_buy:: current_price: %s entry_price %s" % (current_price, self._entry_price))
+            #print_log("ordened_buy:: current_price: %s entry_price %s" % (current_price, self._entry_price))
         
         #Checking for passive position changes
         if self._position == _positions['ordened_sell']:
             self.reward += 1
             if current_price <= self._entry_price:
                 self.info['status'] = 'Order sold'
-                self.done = True
+                #self.done = True
                 self.reward += 0.1
                 self._position = _positions['flat']
                 profite = self._exit_price - self._entry_price
                 self.total_profite = profite
+                self._entry_price = 0
                 if profite > 0:
                     if self._total_reward < 0:
                         self.reward = -1*self._total_reward 
-                    print("#######################")
+                    print_log("#######################")
                     self.instant_pnl = pow(profite+1,2)
-                    print("Profite: %s instant_pnl: %s current reward %s" % (profite, self.instant_pnl, self.reward))
-                    print("#######################")
-                    self._entry_price = 0
+                    print_log("Profite: %s instant_pnl: %s current reward %s" % (profite, self.instant_pnl, self.reward))
+                    print_log("#######################")
         elif self._position == _positions['ordened_buy']:
             #self.reward -= self._trading_fee
             self.reward += 1
