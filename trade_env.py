@@ -1,13 +1,14 @@
 import numpy as np
 import datetime
 from gym import error, spaces
+from numpy import argmax
 
 _actions = {
     'hold': 0,
     'buy': 1,
-    'sell': 2,
-    'cancel_buy': 3,
-    'cancel_sell': 4
+    'sell': 2
+    #'cancel_buy': 3,
+    #'cancel_sell': 4
 }
 
 _positions = {
@@ -20,8 +21,10 @@ _positions = {
 _allowed = {
     _positions['flat']: {'hold', 'buy'},
     _positions['bought']: {'hold', 'sell'},
-    _positions['ordened_sell']: {'hold', 'cancel_sell'},
-    _positions['ordened_buy']: {'hold', 'cancel_buy'}
+    #_positions['ordened_sell']: {'hold', 'cancel_sell'},
+    #_positions['ordened_buy']: {'hold', 'cancel_buy'}
+    _positions['ordened_sell']: {'hold', 'sell'},
+    _positions['ordened_buy']: {'hold', 'buy'}
 }
 
 # integer encode input data
@@ -39,7 +42,7 @@ class TraderEnv():
     """Class for a discrete (buy/hold/sell) spread trading environment.
     """
 
-    def __init__(self, data_generator, episode_length=1000, trading_fee=0, time_fee=0, history_length=2):
+    def __init__(self, data_generator, episode_length=6000, trading_fee=0, time_fee=0, history_length=3, stage_history_length=3):
         """Initialisation function
         Args:
             data_generator (tgym.core.DataGenerator): A data
@@ -54,7 +57,7 @@ class TraderEnv():
                 observation vector.
         """
         
-        assert history_length > 0
+        #assert history_length > 0
         self._data_generator = data_generator
         self._first_render = True
         self.total_profite = 0
@@ -64,7 +67,9 @@ class TraderEnv():
         self._episode_length = data_generator.max_steps()
         self.action_space = spaces.Discrete(len(_actions))
         self._prices_history = []
+        self._positions_history = []
         self._history_length = history_length
+        self.stage_history_length = stage_history_length
         self.reset()
 
     def reset(self):
@@ -72,6 +77,9 @@ class TraderEnv():
         Returns:
             observation (numpy.array): observation of the state
         """
+        
+        self._prices_history = []
+        self._positions_history = []
         
         self._data_generator.rewind()
         self._total_reward = 0
@@ -81,15 +89,18 @@ class TraderEnv():
         self._entry_price = 0
         self._exit_price = 0
         
-        print("Reset with: %s on step %s" % (self.total_profite, self._iteration))
         self.total_profite = 0
         self._iteration = 0
         
         self.invalid_actions = 0
-        self.max_invalid_actions = 1000
+        self.max_invalid_actions = 100
                 
         self.get_observation()
         
+        for i in range(self.stage_history_length): 
+            self._positions_history.append(self._position)
+            self.get_observation()
+            
         self.observation_space = spaces.Box(-1,1,len(self.get_state()))
         
         self._action = _actions['hold']
@@ -98,7 +109,7 @@ class TraderEnv():
     def step_string(self, action_string):
         return self.step(_actions[action_string])
     
-    def step(self, action):
+    def step(self, encoded_action):
         """Take an action (buy/sell/hold) and computes the immediate reward.
         Args:
             action (numpy.array): Action to be taken, one-hot encoded.
@@ -110,46 +121,69 @@ class TraderEnv():
                 - info (dict): Contains auxiliary diagnostic information (helpful for debugging, and sometimes learning).
         """
         
+        #print(encoded_action)
+        #action = argmax(encoded_action)
+        action = encoded_action
+        
+        #print(action)
+        
         self._action = action
         self._iteration += 1
-        done = False
+        self.done = False
         self.instant_pnl = 0
-        info = {}
-        self.reward = -self._time_fee
+        self.info = {}
+        self.reward = 0
         
         observation = self.get_observation()
         
-        if self.is_valid(action, self._position):
-            if action == _actions['buy']:
-                self.send_order_to_buy()
-            elif action == _actions['sell']:
-                self.send_order_to_sell()
-            elif action == _actions['cancel_buy']:
-                self.cancel_buy()
-            elif action == _actions['cancel_sell']:
-                self.cancel_sell()
-            
-        else:
-            info['status'] = 'Invalid action'
-            self.invalid_actions += 1
-            if self.max_invalid_actions < self.invalid_actions:
-                print("max_invalid_actions: %s invalid_actions: %s" % (self.max_invalid_actions, self.invalid_actions))
-                done = True
-            #self.reward += -100
+        if not self.done: 
+            if self.is_valid(action, self._position):
+                if action == _actions['buy']:
+                    self.send_order_to_buy()
+                elif action == _actions['sell']:
+                    self.send_order_to_sell()
+                #elif action == _actions['cancel_buy']:
+                #    self.cancel_buy()
+                #elif action == _actions['cancel_sell']:
+                #    self.cancel_sell()
+                self.reward += 0.1
+            else:
+                self.info['status'] = 'Invalid action'
+                self.invalid_actions += 1
+                #if self.max_invalid_actions < self.invalid_actions:
+                    #self.done = True
+                #    print("max_invalid_actions: %s invalid_actions: %s" % (self.max_invalid_actions, self.invalid_actions))
+                self.reward += -300
+                #print('Invalid action %s' % self.reward)
             
         self.reward += self.instant_pnl
         self._total_pnl += self.instant_pnl
         self._total_reward += self.reward
 
         # Game over logic
-        if self._data_generator.has_next() == False:
-            done = True
-            info['status'] = 'No more data.'
+        if not self._data_generator.has_next():
+            self.done = True
+            self.info['status'] = 'No more data. %s / %s' % (self._data_generator.index, self._data_generator.max_steps())
         if self._iteration >= self._episode_length:
-            done = True
-            info['status'] = 'Time out.'
-            
-        return self.get_state(), self.reward, done, info
+            self.done = True
+            self.info['status'] = 'Time out.'
+        
+        self.reward += -self._time_fee
+        
+        self._total_reward += self.reward
+        
+        state, reward, done, info = self.get_state(), self.reward, self.done, self.info
+        
+        if self.done:
+            self.game_over()
+        
+        return state, reward, done, info 
+    
+    def game_over(self):
+        print("Reward: %s info: %s" % (self.reward, self.info))
+        print("Reseted with: %s on step %s invalid actions %s" % (self.total_profite, self._iteration, self.invalid_actions))
+        self.reset()
+        
     
     def _handle_close(self, evt):
         self._closed_plot = True
@@ -161,17 +195,23 @@ class TraderEnv():
         return result
             
     def send_order_to_buy(self):
-        self._position = _positions['ordened_buy']
-        self._entry_price = self.get_order_value()
+        if self._position != _positions['ordened_buy']:
+            self.reward += 1
+            self._position = _positions['ordened_buy']
+            self._entry_price = self.get_order_value()
             
     def send_order_to_sell(self):
-        self._position = _positions['ordened_sell']
-        self._exit_price = self.get_order_value()
+        if self._position != _positions['ordened_sell']:
+            self.reward += 1
+            self._position = _positions['ordened_sell']
+            self._exit_price = self.get_order_value()
 
     def cancel_buy(self):
+        self.reward += 1
         self._position = _positions['flat']
 
     def cancel_sell(self):
+        self.reward += 1
         self._position = _positions['flat']
 
     def get_current_state(self):
@@ -183,28 +223,39 @@ class TraderEnv():
     def get_state(self):
         raw_state = self.current
         list = []
-        bids = raw_state["bids"]
-        asks = raw_state["asks"]
 
         price = raw_state["price"]
 
         #list.append(price)
-        list.append(raw_state["amount"])
+        #list.append(raw_state["amount"])
 
         def prepare_orders(orders, price, multi):
             for order in orders:
                 list.append((float(order[0])/price) * multi)
-                list.append(float(order[1]))
+                #list.append(float(order[1]))
 
-        prepare_orders(asks, price, 1)
-        prepare_orders(bids, price, -1)
+        history = self._prices_history[-self.stage_history_length:]
+        for old_order in history:
+            bids = old_order["bids"]
+            asks = old_order["asks"]
+            prepare_orders(asks, price, 1)
+            prepare_orders(bids, price, -1)
+            
+        self._positions_history.append(self._position)
+        positions = self._positions_history[-self.stage_history_length:]
+        for old_positions in positions:
+            #print(onehot_encoded(old_positions))
+            list.extend(onehot_encoded(old_positions))
         
-        list.extend(onehot_encoded(self.get_current_position()))
+        list.extend([self.invalid_actions])
+        
+        #print(self._positions_history)
         
         return np.array(list)
         
     def get_observation(self):
         self.current = self._data_generator.next()
+        self._prices_history.append(self.current)
         current_price = self.current["price"]
         
         value = datetime.datetime.fromtimestamp(int(self.current["timestamp"]))
@@ -220,11 +271,15 @@ class TraderEnv():
         if self._position == _positions['ordened_sell']:
             self.reward += 1
             if current_price <= self._entry_price:
-                self.reward += 1
+                self.info['status'] = 'Order sold'
+                self.done = True
+                self.reward += 0.1
                 self._position = _positions['flat']
                 profite = self._exit_price - self._entry_price
-                self.total_profite += profite
+                self.total_profite = profite
                 if profite > 0:
+                    if self._total_reward < 0:
+                        self.reward = -1*self._total_reward 
                     print("#######################")
                     self.instant_pnl = pow(profite+1,2)
                     print("Profite: %s instant_pnl: %s current reward %s" % (profite, self.instant_pnl, self.reward))
