@@ -154,7 +154,7 @@ class TraderEnv():
                 #elif action == _actions['cancel_sell']:
                 #    self.cancel_sell()
                 elif action == _actions['hold']:
-                    self.add_reward(-0.1)
+                    self.add_reward(-0.00001)
             else:
                 self.info['status'] = 'Invalid action'
                 self.invalid_actions += 1
@@ -175,7 +175,7 @@ class TraderEnv():
             self.info['status'] = 'No more data. %s / %s' % (self._data_generator.index, self._data_generator.max_steps())
         elif self._total_reward < self.minimum_reward_limit:
             self.done = True
-            self.info['status'] = 'reward too low %s' % self._total_reward
+            self.info['status'] = 'reward too low %s/%s' % (self._total_reward, self.reward)
         
         self.add_reward(-self._time_fee)
         
@@ -274,8 +274,6 @@ class TraderEnv():
                 self.total_profite = profite
                 self._entry_price = 0
                 if profite > 0:
-                    if self._total_reward < 0:
-                        self.reward = -1*self._total_reward 
                     print_log("#######################")
                     self.instant_pnl = pow(profite+1,2)
                     print_log("Profite: %s instant_pnl: %s current reward %s" % (profite, self.instant_pnl, self.reward))
