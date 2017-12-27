@@ -100,7 +100,7 @@ class TraderEnv():
         self.invalid_actions = 0
         self.max_invalid_actions = 10
         
-        self.minimum_reward_limit = -200000
+        self.minimum_reward_limit = -500
                 
         self.get_observation()
         
@@ -154,13 +154,13 @@ class TraderEnv():
                 #elif action == _actions['cancel_sell']:
                 #    self.cancel_sell()
                 elif action == _actions['hold']:
-                    self.add_reward(-10)
+                    self.add_reward(-0.1)
             else:
                 self.info['status'] = 'Invalid action'
                 self.invalid_actions += 1
                 if self.max_invalid_actions < self.invalid_actions:
                     self.done = True
-                    self.add_reward(-100)
+                    self.add_reward(-300)
                     print_log("max_invalid_actions: %s invalid_actions: %s" % (self.max_invalid_actions, self.invalid_actions))
                 else:
                     self.add_reward(-0.2)
@@ -175,7 +175,7 @@ class TraderEnv():
             self.info['status'] = 'No more data. %s / %s' % (self._data_generator.index, self._data_generator.max_steps())
         elif self._total_reward < self.minimum_reward_limit:
             self.done = True
-            self.info['status'] = 'reward too low'
+            self.info['status'] = 'reward too low %s' % self._total_reward
         
         self.add_reward(-self._time_fee)
         
