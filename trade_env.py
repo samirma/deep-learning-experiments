@@ -23,8 +23,8 @@ _allowed = {
     _positions['bought']: {'hold', 'sell'},
     #_positions['ordened_sell']: {'hold', 'cancel_sell'},
     #_positions['ordened_buy']: {'hold', 'cancel_buy'}
-    _positions['ordened_sell']: {'hold'},
-    _positions['ordened_buy']: {'hold'}
+    _positions['ordened_sell']: {'hold', 'sell'},
+    _positions['ordened_buy']: {'hold', 'buy'}
 }
 
 # integer encode input data
@@ -154,7 +154,7 @@ class TraderEnv():
                 #elif action == _actions['cancel_sell']:
                 #    self.cancel_sell()
                 elif action == _actions['hold']:
-                    self.add_reward(-0.00001)
+                    self.add_reward(-0.002)
             else:
                 self.info['status'] = 'Invalid action'
                 self.invalid_actions += 1

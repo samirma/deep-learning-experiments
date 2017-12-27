@@ -14,7 +14,7 @@ from keras import backend as K
 episode = 0
 scores = []
 
-EPISODES = 3000
+EPISODES = 10000
 
 # This is A3C(Asynchronous Advantage Actor Critic) agent(global) for the Cartpole
 # In this example, we use A3C algorithm
@@ -35,7 +35,7 @@ class A3CAgent:
         # these are hyper parameters for the A3C
         self.actor_lr = 0.00001
         self.critic_lr = 0.00001
-        self.discount_factor = .6
+        self.discount_factor = 0.8
 
         self.threads = 32
 
