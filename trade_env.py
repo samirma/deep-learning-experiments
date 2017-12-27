@@ -249,6 +249,7 @@ class TraderEnv():
             prepare_orders(asks, price, 1)
             prepare_orders(bids, price, -1)
             
+        self._positions_history.append(self._position)
         self._positions_history = self._positions_history[-self.stage_history_length:]
         for old_positions in self._positions_history:
             list.extend(onehot_encoded(old_positions))
