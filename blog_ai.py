@@ -4,7 +4,7 @@ import tensorflow as tf
 import pylab
 import time
 import gym
-from keras.layers import Dense, Input
+from keras.layers import Dense, Input, Dropout
 from keras.models import Model
 from keras.optimizers import Adam
 from keras import backend as K
@@ -14,7 +14,7 @@ from keras import backend as K
 episode = 0
 scores = []
 
-EPISODES = 10000
+EPISODES = 324906
 
 # This is A3C(Asynchronous Advantage Actor Critic) agent(global) for the Cartpole
 # In this example, we use A3C algorithm
@@ -35,9 +35,9 @@ class A3CAgent:
         # these are hyper parameters for the A3C
         self.actor_lr = 0.00001
         self.critic_lr = 0.00001
-        self.discount_factor = 0.8
+        self.discount_factor = 0.7
 
-        self.threads = 32
+        self.threads = 16
 
         # create model for actor and critic network
         self.actor, self.critic = self.build_model()
@@ -56,21 +56,27 @@ class A3CAgent:
     def build_model(self):
         state = Input(batch_shape=(None,  self.state_size))
         shared = Dense(self.state_size, input_dim=self.state_size, activation='relu', kernel_initializer='glorot_uniform')(state)
-        shared = Dense(self.state_size, input_dim=self.state_size, activation='relu', kernel_initializer='glorot_uniform')(shared)
-
         
-        actor_hidden = Dense(self.state_size, activation='relu', kernel_initializer='glorot_uniform')(shared)
-        actor_hidden = Dense(128, activation='relu', kernel_initializer='glorot_uniform')(actor_hidden)
-        actor_hidden = Dense(64, activation='relu', kernel_initializer='glorot_uniform')(actor_hidden)
-        actor_hidden = Dense(32, activation='relu', kernel_initializer='glorot_uniform')(actor_hidden)
-        actor_hidden = Dense(16, activation='relu', kernel_initializer='glorot_uniform')(actor_hidden)
+        def dense(outputs, activation, inputs):
+            hidden = Dense(outputs, activation=activation, kernel_initializer='glorot_uniform')(inputs)
+            return hidden
+        
+        actor_hidden = dense(32, 'relu', shared)
+        actor_hidden = dense(32, 'relu', actor_hidden)
+        actor_hidden = dense(32, 'relu', actor_hidden)
+        actor_hidden = dense(32, 'relu', actor_hidden)
+        actor_hidden = dense(32, 'relu', actor_hidden)
+        actor_hidden = dense(16, 'relu', actor_hidden)
+        actor_hidden = dense(16, 'relu', actor_hidden)
         action_prob = Dense(self.action_size, activation='softmax', kernel_initializer='glorot_uniform')(actor_hidden)
 
-        value_hidden = Dense(self.state_size, activation='relu', kernel_initializer='he_uniform')(shared)
-        #value_hidden = Dense(128, activation='relu', kernel_initializer='he_uniform')(value_hidden)
-        #value_hidden = Dense(64, activation='relu', kernel_initializer='he_uniform')(value_hidden)
-        value_hidden = Dense(32, activation='relu', kernel_initializer='he_uniform')(value_hidden)
-        value_hidden = Dense(16, activation='relu', kernel_initializer='he_uniform')(value_hidden)
+        value_hidden = dense(32, 'relu', shared)
+        value_hidden = dense(32, 'relu', value_hidden)
+        value_hidden = dense(32, 'relu', value_hidden)
+        value_hidden = dense(32, 'relu', value_hidden)
+        value_hidden = dense(16, 'relu', value_hidden)
+        value_hidden = dense(16, 'relu', value_hidden)
+        value_hidden = dense(16, 'relu', value_hidden)
         state_value = Dense(1, activation='linear', kernel_initializer='he_uniform')(value_hidden)
 
         actor = Model(inputs=state, outputs=action_prob)
@@ -175,7 +181,7 @@ class Agent(threading.Thread):
             
             while True:
                 action = self.get_action(state)
-                next_state, reward, done, _ = env.step(action)
+                next_state, reward, done, info = env.step(action)
                 score += reward
 
                 self.memory(state, action, reward)
@@ -184,7 +190,7 @@ class Agent(threading.Thread):
 
                 if done or score < env.minimum_reward_limit:
                     episode += 1
-                    print("episode: ", episode, "/ score : ", score)
+                    print("episode: ", episode, "/ score : ", score, "| end : ", info)
                     scores.append(score)
                     self.train_episode(True)
                     break
