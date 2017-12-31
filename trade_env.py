@@ -133,7 +133,7 @@ class TraderEnv():
         #action = argmax(encoded_action)
         action = encoded_action
         
-        #print_log(action)
+        #print(action)
         
         self._action = action
         self._iteration += 1
