@@ -289,7 +289,7 @@ class TraderEnv():
     def get_output_state(self):
         return self.current
     
-    def render(self, mode):
+    def render(self, mode = "test"):
         return True
 
     def verify_position(self):

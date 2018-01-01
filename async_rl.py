@@ -22,8 +22,6 @@ def build_network(input_shape, output_shape):
     h = Dense(256, activation='relu')(state)
     h = Flatten()(h)
     h = Dense(128, activation='relu')(h)
-    h = Dense(128, activation='relu')(h)
-    h = Dense(64, activation='relu')(h)
     h = Dense(32, activation='relu')(h)
 
     value = Dense(1, activation='linear', name='value')(h)
@@ -61,7 +59,7 @@ def value_loss():
 
 class LearningAgent(object):
     def __init__(self, action_space, observation_shape, batch_size=32, swap_freq=200):
-        from keras.optimizers import RMSprop        
+        from keras.optimizers import RMSprop		
         # -----
         
         self.input_depth = 1
@@ -172,7 +170,7 @@ def learn_proc(mem_queue, weight_dict, get_enviroment):
             save_counter -= 1
             if save_counter < 0:
                 save_counter += save_freq
-                agent.train_net.save_weights('save_model/model-%s.h5' % (game), overwrite=True)
+                agent.train_net.save_weights('save_model/model-%s.h5' (game), overwrite=True)
     except Exception:
         print ('print_exception():')
         exc_type, exc_value, exc_tb = sys.exc_info()
@@ -243,6 +241,12 @@ class ActingAgent(object):
         policy = self.policy_net.predict(self.observations[None, ...])[0]
         return np.random.choice(np.arange(self.action_space.n), p=policy)
 
+    def choose_action_from_observation(self, observation):
+        self.save_observation(observation)
+        policy = self.policy_net.predict(self.observations[None, ...])[0]
+        policy /= np.sum(policy)  # numpy, why?
+        return np.random.choice(np.arange(self.action_space.n), p=policy)
+    
     def save_observation(self, observation):
         self.last_observations = self.observations[...]
         self.observations = np.roll(self.observations, -self.input_depth, axis=0)
