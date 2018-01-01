@@ -22,6 +22,8 @@ def build_network(input_shape, output_shape):
     h = Dense(256, activation='relu')(state)
     h = Flatten()(h)
     h = Dense(128, activation='relu')(h)
+    h = Dense(128, activation='relu')(h)
+    h = Dense(64, activation='relu')(h)
     h = Dense(32, activation='relu')(h)
 
     value = Dense(1, activation='linear', name='value')(h)
@@ -59,7 +61,7 @@ def value_loss():
 
 class LearningAgent(object):
     def __init__(self, action_space, observation_shape, batch_size=32, swap_freq=200):
-        from keras.optimizers import RMSprop		
+        from keras.optimizers import RMSprop        
         # -----
         
         self.input_depth = 1
@@ -120,10 +122,12 @@ class LearningAgent(object):
 
 
 def learn_proc(mem_queue, weight_dict, get_enviroment):
+    print("learn_proc")
     import os
     pid = os.getpid()
     os.environ['THEANO_FLAGS'] = 'floatX=float32,device=gpu,nvcc.fastmath=False,lib.cnmem=0.3,' + \
                                  'compiledir=th_comp_learn'
+
     try: 
         # -----
         print(' %5d> Learning process' % (pid,))
@@ -140,7 +144,7 @@ def learn_proc(mem_queue, weight_dict, get_enviroment):
         # -----
         if checkpoint > 0:
             print(' %5d> Loading weights from file' % (pid,))
-            agent.train_net.load_weights('model-%s-%d.h5' % (game, checkpoint,))
+            agent.train_net.load_weights('save_model/model-%s.h5' % (game))
             # -----
         print(' %5d> Setting weights in dict' % (pid,))
         weight_dict['update'] = 0
@@ -168,10 +172,11 @@ def learn_proc(mem_queue, weight_dict, get_enviroment):
             save_counter -= 1
             if save_counter < 0:
                 save_counter += save_freq
-                agent.train_net.save_weights('model-%s-%d.h5' % (game, agent.counter,), overwrite=True)
-    except Exception as inst:
-        print(inst)
-        raise
+                agent.train_net.save_weights('save_model/model-%s.h5' % (game), overwrite=True)
+    except Exception:
+        print ('print_exception():')
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_tb)
 
 class ActingAgent(object):
     def __init__(self, env, n_step=8, discount=0.99):
@@ -263,7 +268,7 @@ def generate_experience_proc(mem_queue, weight_dict, no, generator):
 
     if frames > 0:
         print(' %5d> Loaded weights from file' % (pid,))
-        agent.load_net.load_weights('model-%s-%d.h5' % (game, frames))
+        agent.load_net.load_weights('save_model/model-%s.h5' % (game))
     else:
         import time
         while 'weights' not in weight_dict:

@@ -272,7 +272,7 @@ class TraderEnv():
             self.add_reward(1)
             if current_price <= self._entry_price:
                 self.info['status'] = 'Order sold'
-                self.done = True
+                #self.done = True
                 self._position = _positions['flat']
                 profite = self._exit_price - self._entry_price
                 self.total_profite = profite
