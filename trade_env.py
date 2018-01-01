@@ -88,8 +88,6 @@ class TraderEnv():
         
         self._data_generator.rewind()
         self._total_reward = 0
-        self._total_pnl = 0
-        self.instant_pnl = 0
         self._position = _positions['flat']
         self._entry_price = 0
         self._exit_price = 0
@@ -138,7 +136,6 @@ class TraderEnv():
         self._action = action
         self._iteration += 1
         self.done = False
-        self.instant_pnl = 0
         self.info = {}
         self.reward = 0
         
@@ -168,8 +165,6 @@ class TraderEnv():
         
         self.verify_position()
         
-        self.add_reward(self.instant_pnl)
-        self._total_pnl += self.instant_pnl
         self._total_reward += self.reward
 
         # Game over logic
@@ -196,8 +191,7 @@ class TraderEnv():
         return state, reward, done, info 
     
     def game_over(self):
-        print_log("Reward: %s info: %s" % (self.reward, self.info))
-        print_log("Reseted with: %s on step %s invalid actions %s" % (self.total_profite, self._iteration, self.invalid_actions))
+        print_log("Profite with: %s on step %s Reward: %s info: %s" % (self.total_profite, self._iteration, self.reward, self.info))
         #self.reset()
         
     
@@ -269,21 +263,26 @@ class TraderEnv():
         current_price = self.current["price"]
                 
         if self._position == _positions['ordened_sell']:
-            self.add_reward(1)
+            self.add_reward(0.001)
             if current_price <= self._entry_price:
                 self.info['status'] = 'Order sold'
-                #self.done = True
+                self.done = True
                 self._position = _positions['flat']
                 profite = self._exit_price - self._entry_price
                 self.total_profite = profite
                 self._entry_price = 0
                 if profite > 0:
-                    self.instant_pnl = 10 + pow(profite+1,2)
-                    print_log("Profite: %s instant_pnl: %s current reward %s" % (profite, self.instant_pnl, self.reward))
+                    profite = 10 + profite*10
+                    #print(profite)
+                    self.add_reward(profite)
+                    print_log("Profite: %s current reward %s" % (profite, self.reward))
+                else:
+                    no_profite = -10 + profite*10
+                    self.add_reward(no_profite)
         elif self._position == _positions['ordened_buy']:
             #self.reward -= self._trading_fee
-            self.add_reward(1)
             if current_price <= self._entry_price:
+                self.add_reward(0.001)
                 self._position = _positions['bought']
 
     def get_output_state(self):
@@ -310,13 +309,13 @@ class TraderEnv():
         if average_ind > 0:
             if self._position == _positions['flat'] or self._position == _positions['ordened_sell']:
                 #print("Penalt for inaction %s %s" % (order_value, average))
-                self.add_reward(-0.05 - average_ind)
+                self.add_reward(-0.003 - average_ind)
             else:
                 self.add_reward(0.001)
         else:
             if self._position == _positions['bought'] or self._position == _positions['ordened_buy']:
                 #print("\n Penalt for inaction %s %s \n" % (order_value, average))
-                self.add_reward(-0.05 + average_ind)
+                self.add_reward(-0.003 + average_ind)
             else:
                 self.add_reward(0.001)
     

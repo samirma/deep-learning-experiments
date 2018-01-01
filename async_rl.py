@@ -9,9 +9,11 @@ import numpy as np
 import h5py
 import traceback
 import sys
+from numpy import argmax
 
 
 game = "trade"
+model_file = 'save_model/model-trade.h5'
 
 def build_network(input_shape, output_shape):
     from keras.models import Model
@@ -22,6 +24,8 @@ def build_network(input_shape, output_shape):
     h = Dense(256, activation='relu')(state)
     h = Flatten()(h)
     h = Dense(128, activation='relu')(h)
+    h = Dense(128, activation='relu')(h)
+    h = Dense(64, activation='relu')(h)
     h = Dense(32, activation='relu')(h)
 
     value = Dense(1, activation='linear', name='value')(h)
@@ -120,15 +124,13 @@ class LearningAgent(object):
 
 
 def learn_proc(mem_queue, weight_dict, get_enviroment):
-    print("learn_proc")
     import os
     pid = os.getpid()
+    print(' %5d> Learning process' % (pid,))
     os.environ['THEANO_FLAGS'] = 'floatX=float32,device=gpu,nvcc.fastmath=False,lib.cnmem=0.3,' + \
                                  'compiledir=th_comp_learn'
 
-    try: 
-        # -----
-        print(' %5d> Learning process' % (pid,))
+    try:         
         # -----
         save_freq = 50
         learning_rate = 0.001
@@ -142,7 +144,7 @@ def learn_proc(mem_queue, weight_dict, get_enviroment):
         # -----
         if checkpoint > 0:
             print(' %5d> Loading weights from file' % (pid,))
-            agent.train_net.load_weights('save_model/model-%s.h5' % (game))
+            agent.train_net.load_weights(model_file)
             # -----
         print(' %5d> Setting weights in dict' % (pid,))
         weight_dict['update'] = 0
@@ -170,9 +172,9 @@ def learn_proc(mem_queue, weight_dict, get_enviroment):
             save_counter -= 1
             if save_counter < 0:
                 save_counter += save_freq
-                agent.train_net.save_weights('save_model/model-%s.h5' (game), overwrite=True)
+                agent.train_net.save_weights(model_file, overwrite=True)
     except Exception:
-        print ('print_exception():')
+        print ('learn_proc Exception')
         exc_type, exc_value, exc_tb = sys.exc_info()
         traceback.print_exception(exc_type, exc_value, exc_tb)
 
@@ -245,7 +247,9 @@ class ActingAgent(object):
         self.save_observation(observation)
         policy = self.policy_net.predict(self.observations[None, ...])[0]
         policy /= np.sum(policy)  # numpy, why?
-        return np.random.choice(np.arange(self.action_space.n), p=policy)
+        action =  np.random.choice(np.arange(self.action_space.n), p=policy)
+        #print("%s - %s" % (argmax(policy), action))
+        return action
     
     def save_observation(self, observation):
         self.last_observations = self.observations[...]
@@ -272,7 +276,7 @@ def generate_experience_proc(mem_queue, weight_dict, no, generator):
 
     if frames > 0:
         print(' %5d> Loaded weights from file' % (pid,))
-        agent.load_net.load_weights('save_model/model-%s.h5' % (game))
+        agent.load_net.load_weights(model_file)
     else:
         import time
         while 'weights' not in weight_dict:
@@ -302,7 +306,7 @@ def generate_experience_proc(mem_queue, weight_dict, no, generator):
                 action = agent.choose_action()
                 observation, reward, done, info = env.step(action)
                 #print(info)
-                episode_reward += reward
+                episode_reward += env.total_profite
                 best_score = max(best_score, episode_reward)
                 # -----
                 agent.sars_data(action, reward, observation, done, mem_queue)
@@ -312,7 +316,7 @@ def generate_experience_proc(mem_queue, weight_dict, no, generator):
                 op_last = action
                 # -----
                 if frames % 2000 == 0:
-                    print(' %5d> Best: %4d; Avg: %6.2f; Max: %4d' % (
+                    print(' %5d> Best: %6.3f; Avg: %6.3f; Max: %6.3f' % (
                         pid, best_score, np.mean(avg_score), np.max(avg_score)))
                 if frames % batch_size == 0:
                     update = weight_dict.get('update', 0)
@@ -323,7 +327,7 @@ def generate_experience_proc(mem_queue, weight_dict, no, generator):
             # -----
             avg_score.append(episode_reward)
     except Exception:
-        print ('print_exception():')
+        print ('generate_experience_proc execption')
         exc_type, exc_value, exc_tb = sys.exc_info()
         traceback.print_exception(exc_type, exc_value, exc_tb)
 
