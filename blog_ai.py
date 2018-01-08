@@ -37,7 +37,7 @@ class A3CAgent:
         self.critic_lr = 0.00001
         self.discount_factor = 0.7
 
-        self.threads = 16
+        self.threads = 32
 
         # create model for actor and critic network
         self.actor, self.critic = self.build_model()
@@ -61,7 +61,7 @@ class A3CAgent:
             hidden = Dense(outputs, activation=activation, kernel_initializer='glorot_uniform')(inputs)
             return hidden
         
-        actor_hidden = dense(32, 'relu', shared)
+        actor_hidden = dense(64, 'relu', shared)
         actor_hidden = dense(32, 'relu', actor_hidden)
         actor_hidden = dense(32, 'relu', actor_hidden)
         actor_hidden = dense(32, 'relu', actor_hidden)
@@ -70,7 +70,7 @@ class A3CAgent:
         actor_hidden = dense(16, 'relu', actor_hidden)
         action_prob = Dense(self.action_size, activation='softmax', kernel_initializer='glorot_uniform')(actor_hidden)
 
-        value_hidden = dense(32, 'relu', shared)
+        value_hidden = dense(64, 'relu', shared)
         value_hidden = dense(32, 'relu', value_hidden)
         value_hidden = dense(32, 'relu', value_hidden)
         value_hidden = dense(32, 'relu', value_hidden)

@@ -10,6 +10,7 @@ import h5py
 import traceback
 import sys
 from numpy import argmax
+from pathlib import Path
 
 
 game = "trade"
@@ -67,9 +68,9 @@ class LearningAgent(object):
         # -----
         
         self.input_depth = 1
-        self.past_range = 3
+        self.past_range = 20
         self.observation_shape = (self.input_depth * self.past_range,) + observation_shape
-        self.batch_size = 32
+        self.batch_size = batch_size
         self.beta = 0.01
 
         _, _, self.train_net, adventage = build_network(self.observation_shape, action_space.n)
@@ -99,6 +100,7 @@ class LearningAgent(object):
         adventage = rewards - values.flatten()
         self.targets[self.unroll, actions] = 1.
         # -----
+        loss = 0
         loss = self.train_net.train_on_batch([last_observations, adventage], [rewards, self.targets])
         entropy = np.mean(-policy * np.log(policy + 0.00000001))
         self.pol_loss.append(loss[2])
@@ -132,17 +134,17 @@ def learn_proc(mem_queue, weight_dict, get_enviroment):
 
     try:         
         # -----
-        save_freq = 50
-        learning_rate = 0.001
+        save_freq = 100 
+        learning_rate = 0.0001
         batch_size = 32
         checkpoint = 0
-        steps = 80000000
+        steps = 99000000
         # -----
         env = get_enviroment()
         state_size = env.observation_space.shape
         agent = LearningAgent(env.action_space, state_size, batch_size=batch_size)
         # -----
-        if checkpoint > 0:
+        if Path(model_file).exists():
             print(' %5d> Loading weights from file' % (pid,))
             agent.train_net.load_weights(model_file)
             # -----
@@ -186,7 +188,7 @@ class ActingAgent(object):
         action_space = env.action_space
         
         self.input_depth = 1
-        self.past_range = 3
+        self.past_range = 20
         self.observation_shape = (self.input_depth * self.past_range,) + env.observation_space.shape
 
         #print("pre build_network" , action_space, self.observation_shape)
@@ -195,9 +197,9 @@ class ActingAgent(object):
 
         #print("pos build_network")
 
-        self.value_net.compile(optimizer='rmsprop', loss='mse')
-        self.policy_net.compile(optimizer='rmsprop', loss='categorical_crossentropy')
-        self.load_net.compile(optimizer='rmsprop', loss='mse', loss_weights=[0.5, 1.])  # dummy loss
+        self.value_net.compile(optimizer='adam', loss='mse')
+        self.policy_net.compile(optimizer='adam', loss='categorical_crossentropy')
+        self.load_net.compile(optimizer='adam', loss='mse', loss_weights=[0.5, 1.])  # dummy loss
 
         self.action_space = action_space
         self.observations = np.zeros(self.observation_shape)

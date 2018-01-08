@@ -253,7 +253,10 @@ class TraderEnv():
         for old_positions in self._positions_history:
             list.extend(onehot_encoded(old_positions))
         
-        list.extend([self.invalid_actions])
+        if self._entry_price != 0:
+            list.extend([price/self._entry_price])
+        else:
+            list.extend([0])
         
         return np.array(list)
         
@@ -266,7 +269,7 @@ class TraderEnv():
             self.add_reward(0.001)
             if current_price <= self._entry_price:
                 self.info['status'] = 'Order sold'
-                self.done = True
+                self.done = False
                 self._position = _positions['flat']
                 profite = self._exit_price - self._entry_price
                 self.total_profite = profite
@@ -309,15 +312,15 @@ class TraderEnv():
         if average_ind > 0:
             if self._position == _positions['flat'] or self._position == _positions['ordened_sell']:
                 #print("Penalt for inaction %s %s" % (order_value, average))
-                self.add_reward(-0.003 - average_ind)
+                self.add_reward(-0.0003 - average_ind)
             else:
-                self.add_reward(0.001)
+                self.add_reward(0.0001)
         else:
             if self._position == _positions['bought'] or self._position == _positions['ordened_buy']:
                 #print("\n Penalt for inaction %s %s \n" % (order_value, average))
-                self.add_reward(-0.003 + average_ind)
+                self.add_reward(-0.0003 + average_ind)
             else:
-                self.add_reward(0.001)
+                self.add_reward(0.0001)
     
     def add_reward(self, reward):
         #print("add: ", reward)

@@ -13,13 +13,13 @@ from collections import deque
 
 
 
-stage_length_var = 30
+stage_length_var = 10
 def get_enviroment():
-    return TraderEnv(DataGenerator(), stage_history_length=stage_length_var)
+    return TraderEnv(DataGenerator(random=False, first_index=2), stage_history_length=stage_length_var)
 
 manager = Manager()
 weight_dict = manager.dict()
-mem_queue = manager.Queue(256)
+mem_queue = manager.Queue(256*3)
 
 threads = 16
 
