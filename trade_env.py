@@ -205,14 +205,14 @@ class TraderEnv():
         return result
             
     def send_order_to_buy(self):
-        if self._position != _positions['ordened_buy']:
-            self.add_reward(1)
+        if self._position == _positions['flat']:
+            self.add_reward(0.01)
             self._position = _positions['ordened_buy']
             self._entry_price = self.get_order_value()
             
     def send_order_to_sell(self):
-        if self._position != _positions['ordened_sell']:
-            self.add_reward(1)
+        if self._position == _positions['bought']:
+            self.add_reward(0.01)
             self._position = _positions['ordened_sell']
             self._exit_price = self.get_order_value()
 
