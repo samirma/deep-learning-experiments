@@ -177,8 +177,6 @@ class TraderEnv():
         
         self.add_reward(-self._time_fee)
         
-        self._total_reward += self.reward
-        
         state, reward, done, info = self.get_state(), self.reward, self.done, self.info
         
         if self.done:
@@ -198,23 +196,27 @@ class TraderEnv():
     def _handle_close(self, evt):
         self._closed_plot = True
             
-    def get_order_value(self):
-        ask = float(self.current["asks"][0][0])
+    def get_order_sell_value(self):
         bid = float(self.current["bids"][0][0])
-        result = (ask + bid)/2
-        return result
+        return bid
             
+    def get_order_buy_value(self):
+        ask = float(self.current["asks"][0][0])
+        return ask
+
     def send_order_to_buy(self):
         if self._position == _positions['flat']:
             self.add_reward(0.01)
             self._position = _positions['ordened_buy']
-            self._entry_price = self.get_order_value()
+            self._entry_price = self.get_order_buy_value()
+            #print("send_order_to_buy: Current price %s order: %s" % (profite, self.reward))
             
     def send_order_to_sell(self):
         if self._position == _positions['bought']:
             self.add_reward(0.01)
             self._position = _positions['ordened_sell']
-            self._exit_price = self.get_order_value()
+            self._exit_price = self.get_order_sell_value()
+            #print("send_order_to_sell: Current price %s order: %s" % (profite, self.reward))
 
     def cancel_buy(self):
         self.add_reward(1)
@@ -266,26 +268,28 @@ class TraderEnv():
         current_price = self.current["price"]
                 
         if self._position == _positions['ordened_sell']:
-            self.add_reward(0.001)
-            if current_price <= self._entry_price:
+            #self.add_reward(0.001)
+            if current_price >= self._exit_price:
                 self.info['status'] = 'Order sold'
                 self.done = False
                 self._position = _positions['flat']
                 profite = self._exit_price - self._entry_price
-                self.total_profite = profite
+                self.total_profite += profite
                 self._entry_price = 0
+                self._exit_price = 0
                 if profite > 0:
-                    profite = 10 + profite*10
+                    reward = 10 + profite*10
                     #print(profite)
-                    self.add_reward(profite)
-                    print_log("Profite: %s current reward %s" % (profite, self.reward))
+                    self.add_reward(reward)
                 else:
                     no_profite = -10 + profite*10
                     self.add_reward(no_profite)
+                #print("########################################################### Profite: %s current reward %s" % (profite, self.reward))
+
         elif self._position == _positions['ordened_buy']:
             #self.reward -= self._trading_fee
             if current_price <= self._entry_price:
-                self.add_reward(0.001)
+                #self.add_reward(0.001)
                 self._position = _positions['bought']
 
     def get_output_state(self):
@@ -299,28 +303,30 @@ class TraderEnv():
         
         prices = []
         
+        prices.append(price)
+
         for old_order in self._prices_history:
             old_price = old_order["price"]
             prices.append(old_price)
         
         average = (sum(prices) / len(prices))
         
-        order_value = self.get_order_value()
+        price_is_getting_higher = price > average
         
-        average_ind = ((order_value / average) - 1)
-        
-        if average_ind > 0:
+        if (price_is_getting_higher):
             if self._position == _positions['flat'] or self._position == _positions['ordened_sell']:
-                #print("Penalt for inaction %s %s" % (order_value, average))
-                self.add_reward(-0.0003 - average_ind)
+                #print("price_is_getting_higher: %s %s" % (price, average))
+                penault = abs((price / average) - 1)
+                self.add_reward(-penault - 0.003)
             else:
-                self.add_reward(0.0001)
-        else:
+                self.add_reward(0.00001)
+        else: #price is getting lower
             if self._position == _positions['bought'] or self._position == _positions['ordened_buy']:
-                #print("\n Penalt for inaction %s %s \n" % (order_value, average))
-                self.add_reward(-0.0003 + average_ind)
+                penault = abs((price / average) - 1)
+                #print("price_is getting lower: %s %s " % (price, average))
+                self.add_reward(-penault - 0.003)
             else:
-                self.add_reward(0.0001)
+                self.add_reward(0.00001)
     
     def add_reward(self, reward):
         #print("add: ", reward)
