@@ -15,13 +15,13 @@ from collections import deque
 
 stage_length_var = 10
 def get_enviroment():
-    return TraderEnv(DataGenerator(random=False, first_index=2), stage_history_length=stage_length_var)
+    return TraderEnv(DataGenerator(random=True, first_index=1000), stage_history_length=stage_length_var)
 
 manager = Manager()
 weight_dict = manager.dict()
 mem_queue = manager.Queue(256*3)
 
-threads = 16
+threads = 4
 
 try:
 
@@ -38,5 +38,5 @@ try:
 except:
     pool.terminate()
     pool.join()
-    raise
+    #raise
 

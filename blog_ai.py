@@ -19,7 +19,7 @@ EPISODES = 324906
 # This is A3C(Asynchronous Advantage Actor Critic) agent(global) for the Cartpole
 # In this example, we use A3C algorithm
 class A3CAgent:
-    def __init__(self, state_size, action_size, env_name, env_generator):
+    def __init__(self, state_size, action_size, env_name, env_generator, threads=16):
         # get size of state and action
         self.state_size = state_size
         self.action_size = action_size
@@ -35,9 +35,9 @@ class A3CAgent:
         # these are hyper parameters for the A3C
         self.actor_lr = 0.00001
         self.critic_lr = 0.00001
-        self.discount_factor = 0.7
+        self.discount_factor = 0.8
 
-        self.threads = 32
+        self.threads = threads
 
         # create model for actor and critic network
         self.actor, self.critic = self.build_model()
@@ -61,17 +61,17 @@ class A3CAgent:
             hidden = Dense(outputs, activation=activation, kernel_initializer='glorot_uniform')(inputs)
             return hidden
         
-        actor_hidden = dense(64, 'relu', shared)
-        actor_hidden = dense(32, 'relu', actor_hidden)
-        actor_hidden = dense(32, 'relu', actor_hidden)
-        actor_hidden = dense(32, 'relu', actor_hidden)
+        actor_hidden = dense(128, 'relu', shared)
+        actor_hidden = dense(128, 'relu', actor_hidden)
+        actor_hidden = dense(64, 'relu', actor_hidden)
+        actor_hidden = dense(64, 'relu', actor_hidden)
         actor_hidden = dense(32, 'relu', actor_hidden)
         actor_hidden = dense(16, 'relu', actor_hidden)
         actor_hidden = dense(16, 'relu', actor_hidden)
         action_prob = Dense(self.action_size, activation='softmax', kernel_initializer='glorot_uniform')(actor_hidden)
 
-        value_hidden = dense(64, 'relu', shared)
-        value_hidden = dense(32, 'relu', value_hidden)
+        value_hidden = dense(128, 'relu', shared)
+        value_hidden = dense(128, 'relu', value_hidden)
         value_hidden = dense(32, 'relu', value_hidden)
         value_hidden = dense(32, 'relu', value_hidden)
         value_hidden = dense(16, 'relu', value_hidden)
@@ -231,4 +231,6 @@ class Agent(threading.Thread):
 
     def get_action(self, state):
         policy = self.actor.predict(np.reshape(state, [1, self.state_size]))[0]
-        return np.random.choice(self.action_size, 1, p=policy)[0]
+        action = np.random.choice(self.action_size, 1, p=policy)[0]
+        #print (action)
+        return action

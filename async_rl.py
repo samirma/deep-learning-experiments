@@ -18,16 +18,28 @@ model_file = 'save_model/model-trade.h5'
 
 def build_network(input_shape, output_shape):
     from keras.models import Model
-    from keras.layers import Input, Conv2D, Flatten, Dense
+    from keras.layers import Input, Conv2D, Flatten, Dense, Dropout
     # -----
+    dropout_rate = 0.25
 
     state = Input(shape=input_shape)
-    h = Dense(256, activation='relu')(state)
+    h = Dense(input_shape[0] * input_shape[1], activation='relu')(state)
+    h = Dropout(dropout_rate)(h)
     h = Flatten()(h)
+    h = Dense(128*3, activation='relu')(h)
+    h = Dropout(dropout_rate)(h)
     h = Dense(128, activation='relu')(h)
+    h = Dropout(dropout_rate)(h)
     h = Dense(128, activation='relu')(h)
+    h = Dropout(dropout_rate)(h)
+    h = Dense(128, activation='relu')(h)
+    h = Dropout(dropout_rate)(h)
     h = Dense(64, activation='relu')(h)
+    h = Dropout(dropout_rate)(h)
+    h = Dense(64, activation='relu')(h)
+    h = Dropout(dropout_rate)(h)
     h = Dense(32, activation='relu')(h)
+    h = Dropout(dropout_rate)(h)
 
     value = Dense(1, activation='linear', name='value')(h)
     policy = Dense(output_shape, activation='softmax', name='policy')(h)
@@ -108,15 +120,15 @@ class LearningAgent(object):
         self.entropy.append(entropy)
         self.values.append(np.mean(values))
         min_val, max_val, avg_val = min(self.values), max(self.values), np.mean(self.values)
-        print('\rFrames: %8d; Policy-Loss: %10.6f; Avg: %10.6f '
-              '--- Value-Loss: %10.6f; Avg: %10.6f '
-              '--- Entropy: %7.6f; Avg: %7.6f '
-              '--- V-value; Min: %6.3f; Max: %6.3f; Avg: %6.3f' % (
-                  self.counter,
-                  loss[2], np.mean(self.pol_loss),
-                  loss[1], np.mean(self.val_loss),
-                  entropy, np.mean(self.entropy),
-                  min_val, max_val, avg_val), end='')
+        #print('\rFrames: %8d; Policy-Loss: %10.6f; Avg: %10.6f '
+        #      '--- Value-Loss: %10.6f; Avg: %10.6f '
+        #      '--- Entropy: %7.6f; Avg: %7.6f '
+        #      '--- V-value; Min: %6.3f; Max: %6.3f; Avg: %6.3f' % (
+        #          self.counter,
+        #          loss[2], np.mean(self.pol_loss),
+        #          loss[1], np.mean(self.val_loss),
+        #          entropy, np.mean(self.entropy),
+        #          min_val, max_val, avg_val), end='')
         # -----
         self.swap_counter -= frames
         if self.swap_counter < 0:
@@ -243,15 +255,14 @@ class ActingAgent(object):
 
     def choose_action(self):
         policy = self.policy_net.predict(self.observations[None, ...])[0]
-        return np.random.choice(np.arange(self.action_space.n), p=policy)
+        action = np.random.choice(np.arange(self.action_space.n), p=policy)
+        return action
 
     def choose_action_from_observation(self, observation):
         self.save_observation(observation)
         policy = self.policy_net.predict(self.observations[None, ...])[0]
         policy /= np.sum(policy)  # numpy, why?
-        action =  np.random.choice(np.arange(self.action_space.n), p=policy)
-        #print("%s - %s" % (argmax(policy), action))
-        return action
+        return argmax(policy)
     
     def save_observation(self, observation):
         self.last_observations = self.observations[...]
@@ -313,13 +324,14 @@ def generate_experience_proc(mem_queue, weight_dict, no, generator):
                 # -----
                 agent.sars_data(action, reward, observation, done, mem_queue)
                 # -----
-                op_count = 0 if op_last != action else op_count + 1
-                done = done or op_count >= 100
+                #op_count = 0 if op_last != action else op_count + 1
+                #done = done or op_count >= 100
                 op_last = action
                 # -----
-                if frames % 2000 == 0:
-                    print(' %5d> Best: %6.3f; Avg: %6.3f; Max: %6.3f' % (
-                        pid, best_score, np.mean(avg_score), np.max(avg_score)))
+                mean = np.mean(avg_score)
+                if frames % 2000 == 0 and mean > 0:
+                    print('\n     %5d> Best: %6.3f; Avg: %6.3f; Max: %6.3f' % (
+                        pid, best_score, mean, np.max(avg_score)))
                 if frames % batch_size == 0:
                     update = weight_dict.get('update', 0)
                     if update > last_update:
