@@ -56,27 +56,17 @@ class A3CAgent:
     def build_model(self):
         state = Input(batch_shape=(None,  self.state_size))
         shared = Dense(self.state_size, input_dim=self.state_size, activation='relu', kernel_initializer='glorot_uniform')(state)
-        
         def dense(outputs, activation, inputs):
             hidden = Dense(outputs, activation=activation, kernel_initializer='glorot_uniform')(inputs)
             return hidden
         
-        actor_hidden = dense(128, 'relu', shared)
-        actor_hidden = dense(128, 'relu', actor_hidden)
-        actor_hidden = dense(64, 'relu', actor_hidden)
-        actor_hidden = dense(64, 'relu', actor_hidden)
-        actor_hidden = dense(32, 'relu', actor_hidden)
-        actor_hidden = dense(16, 'relu', actor_hidden)
-        actor_hidden = dense(16, 'relu', actor_hidden)
-        action_prob = Dense(self.action_size, activation='softmax', kernel_initializer='glorot_uniform')(actor_hidden)
+        shared = dense(128, 'relu', shared)
+        shared = dense(128, 'relu', shared)
+        shared = dense(128, 'relu', shared)
+        shared = dense(32, 'relu', shared)
+        action_prob = Dense(self.action_size, activation='softmax', kernel_initializer='glorot_uniform')(shared)
 
-        value_hidden = dense(128, 'relu', shared)
-        value_hidden = dense(128, 'relu', value_hidden)
-        value_hidden = dense(32, 'relu', value_hidden)
-        value_hidden = dense(32, 'relu', value_hidden)
-        value_hidden = dense(16, 'relu', value_hidden)
-        value_hidden = dense(16, 'relu', value_hidden)
-        value_hidden = dense(16, 'relu', value_hidden)
+        value_hidden = dense(16, 'relu', shared)
         state_value = Dense(1, activation='linear', kernel_initializer='he_uniform')(value_hidden)
 
         actor = Model(inputs=state, outputs=action_prob)
@@ -127,7 +117,7 @@ class A3CAgent:
 
     # make agents(local) and start training
     def train(self):
-        # self.load_model('./save_model/cartpole_a3c.h5')
+        #self.load_model('./save_model/model')
         agents = [Agent(i, self.actor, self.critic, self.optimizer, self.env_name, self.discount_factor,
                         self.action_size, self.state_size, self.get_enviroment) for i in range(self.threads)]
 
@@ -144,11 +134,11 @@ class A3CAgent:
         self.save_model('./save_model/model')
         
         
-    def save_model(self, name):
+    def save_model(self, name = './save_model/model'):
         self.actor.save_weights(name + "_actor.h5")
         self.critic.save_weights(name + "_critic.h5")
 
-    def load_model(self, name):
+    def load_model(self, name = './save_model/model'):
         self.actor.load_weights(name + "_actor.h5")
         self.critic.load_weights(name + "_critic.h5")
 

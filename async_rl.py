@@ -28,9 +28,7 @@ def build_network(input_shape, output_shape):
     h = Flatten()(h)
     h = Dense(128*3, activation='relu')(h)
     h = Dropout(dropout_rate)(h)
-    h = Dense(128, activation='relu')(h)
-    h = Dropout(dropout_rate)(h)
-    h = Dense(128, activation='relu')(h)
+    h = Dense(128*2, activation='relu')(h)
     h = Dropout(dropout_rate)(h)
     h = Dense(128, activation='relu')(h)
     h = Dropout(dropout_rate)(h)
@@ -120,15 +118,15 @@ class LearningAgent(object):
         self.entropy.append(entropy)
         self.values.append(np.mean(values))
         min_val, max_val, avg_val = min(self.values), max(self.values), np.mean(self.values)
-        #print('\rFrames: %8d; Policy-Loss: %10.6f; Avg: %10.6f '
-        #      '--- Value-Loss: %10.6f; Avg: %10.6f '
-        #      '--- Entropy: %7.6f; Avg: %7.6f '
-        #      '--- V-value; Min: %6.3f; Max: %6.3f; Avg: %6.3f' % (
-        #          self.counter,
-        #          loss[2], np.mean(self.pol_loss),
-        #          loss[1], np.mean(self.val_loss),
-        #          entropy, np.mean(self.entropy),
-        #          min_val, max_val, avg_val), end='')
+        print('\rFrames: %8d; Policy-Loss: %10.6f; Avg: %10.6f '
+              '--- Value-Loss: %10.6f; Avg: %10.6f '
+              '--- Entropy: %7.6f; Avg: %7.6f '
+              '--- V-value; Min: %6.3f; Max: %6.3f; Avg: %6.3f' % (
+                  self.counter,
+                  loss[2], np.mean(self.pol_loss),
+                  loss[1], np.mean(self.val_loss),
+                  entropy, np.mean(self.entropy),
+                  min_val, max_val, avg_val), end='')
         # -----
         self.swap_counter -= frames
         if self.swap_counter < 0:
@@ -330,7 +328,7 @@ def generate_experience_proc(mem_queue, weight_dict, no, generator):
                 # -----
                 mean = np.mean(avg_score)
                 if frames % 2000 == 0 and mean > 0:
-                    print('\n     %5d> Best: %6.3f; Avg: %6.3f; Max: %6.3f' % (
+                    print('%5d> Best: %6.3f; Avg: %6.3f; Max: %6.3f' % (
                         pid, best_score, mean, np.max(avg_score)))
                 if frames % batch_size == 0:
                     update = weight_dict.get('update', 0)

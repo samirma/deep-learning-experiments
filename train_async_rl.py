@@ -21,7 +21,7 @@ manager = Manager()
 weight_dict = manager.dict()
 mem_queue = manager.Queue(256*3)
 
-threads = 4
+threads = 16
 
 try:
 

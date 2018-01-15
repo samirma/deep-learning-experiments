@@ -246,10 +246,10 @@ class TraderEnv():
 
         self._prices_history = self._prices_history[-self.stage_history_length:]
         for old_order in self._prices_history:
-            bids = old_order["bids"]
-            asks = old_order["asks"]
+            bids = old_order["bids"][:5]
+            asks = old_order["asks"][:5]
             prepare_orders(asks, price, 1)
-            prepare_orders(bids, price, 1)
+            prepare_orders(bids, price, -1)
             
         self._positions_history.append(self._position)
         self._positions_history = self._positions_history[-self.stage_history_length:]
@@ -272,13 +272,13 @@ class TraderEnv():
             #self.add_reward(0.001)
             if current_price >= self._exit_price:
                 self.info['status'] = 'Order sold'
-                self.done = True
                 self._position = _positions['flat']
                 profite = self._exit_price - self._entry_price
                 self.total_profite += profite
                 self._entry_price = 0
                 self._exit_price = 0
                 has_profite = profite > 0
+                self.done = not has_profite
                 if has_profite:
                     reward = 10 + profite*10
                     self.add_reward(reward)
