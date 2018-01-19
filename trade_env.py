@@ -245,17 +245,18 @@ class TraderEnv():
                 #list.append(float(order[1]))
 
         self._prices_history = self._prices_history[-self.stage_history_length:]
-        for old_order in self._prices_history:
-            bids = old_order["bids"][:5]
-            asks = old_order["asks"][:5]
-            prepare_orders(asks, price, 1)
-            prepare_orders(bids, price, -1)
+        #for old_order in self._prices_history:
+        #    bids = old_order["bids"]
+        #    asks = old_order["asks"]
+        prepare_orders(raw_state["bids"], price, 1)
+        prepare_orders(raw_state["asks"], price, -1)
             
-        self._positions_history.append(self._position)
-        self._positions_history = self._positions_history[-self.stage_history_length:]
-        for old_positions in self._positions_history:
-            list.extend(onehot_encoded(old_positions))
-        
+        #self._positions_history.append(self._position)
+        #self._positions_history = self._positions_history[-self.stage_history_length:]
+        #for old_positions in self._positions_history:
+        #    list.extend(onehot_encoded(old_positions))
+        list.extend(onehot_encoded(self._position))
+
         if self._entry_price != 0:
             list.extend([price/self._entry_price])
         else:
@@ -282,10 +283,10 @@ class TraderEnv():
                 if has_profite:
                     reward = 10 + profite*10
                     self.add_reward(reward)
-                    #print("Profite: %s current reward %s, total reward %s" % (profite, self.reward, self._total_reward))
                 else:
                     no_profite = -10 + profite*10
                     self.add_reward(no_profite)
+                print("Profite(%s): %s current reward %s, total reward %s" % (self._iteration, profite, self.reward, self._total_reward))
 
         elif self._position == _positions['ordened_buy']:
             #self.reward -= self._trading_fee
@@ -315,19 +316,21 @@ class TraderEnv():
         price_is_getting_higher = price > average
         
         if (price_is_getting_higher):
-            if self._position == _positions['flat'] or self._position == _positions['ordened_sell']:
+            if self._position == _positions['flat']:
                 penault = abs((price / average) - 1)
-                #print("Getting higher: Current price(%s) > average(%s) = (%s) " % (price, average, penault))
-                self.add_reward(-penault)
-            else:
-                self.add_reward(0.00001)
+                final_penalt = -penault - 0.025
+                #print("Getting higher: Current price(%s) > average(%s) = (%s) " % (price, average, final_penalt))
+                self.add_reward(final_penalt)
+            #else:
+            #    self.add_reward(0.00001)
         else: #price is getting lower
             if self._position == _positions['bought'] or self._position == _positions['ordened_buy']:
                 penault = abs((price / average) - 1)
-                #print("Getting lower: Current price(%s) < average(%s) = (%s) " % (price, average, penault))
-                self.add_reward(-penault)
-            else:
-                self.add_reward(0.00001)
+                final_penalt = -penault - 0.025
+                #print("Getting lower: Current price(%s) < average(%s) = (%s) " % (price, average, final_penalt))
+                self.add_reward(final_penalt)
+            #else:
+            #    self.add_reward(0.00001)
     
     def add_reward(self, reward):
         #print("add: ", reward)

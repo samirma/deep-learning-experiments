@@ -11,7 +11,9 @@ import traceback
 import sys
 from numpy import argmax
 from pathlib import Path
-
+from keras.layers.recurrent import LSTM
+from keras.layers import Bidirectional
+from keras.models import Sequential
 
 game = "trade"
 model_file = 'save_model/model-trade.h5'
@@ -23,20 +25,29 @@ def build_network(input_shape, output_shape):
     dropout_rate = 0.25
 
     state = Input(shape=input_shape)
-    h = Dense(input_shape[0] * input_shape[1], activation='relu')(state)
+
+    window_size = 10
+
+    h = Bidirectional(LSTM(window_size, return_sequences=True), input_shape=(window_size, state.shape[-1]),)(h)
+    h = Dropout(dropout_rate)(h)
+
+    #Second recurrent layer with dropout
+    h = Bidirectional(LSTM((window_size*2), return_sequences=True))(h)
+    h = Dropout(dropout_rate)(h)
+
+    #Third recurrent layer
+    h = Bidirectional(LSTM(window_size, return_sequences=False))(h)
+
+    h = Dense(128, activation='relu')(h)
     h = Dropout(dropout_rate)(h)
     h = Flatten()(h)
     h = Dense(128*3, activation='relu')(h)
     h = Dropout(dropout_rate)(h)
-    h = Dense(128*2, activation='relu')(h)
+    h = Dense(128, activation='relu')(h)
     h = Dropout(dropout_rate)(h)
     h = Dense(128, activation='relu')(h)
     h = Dropout(dropout_rate)(h)
     h = Dense(64, activation='relu')(h)
-    h = Dropout(dropout_rate)(h)
-    h = Dense(64, activation='relu')(h)
-    h = Dropout(dropout_rate)(h)
-    h = Dense(32, activation='relu')(h)
     h = Dropout(dropout_rate)(h)
 
     value = Dense(1, activation='linear', name='value')(h)
@@ -85,7 +96,7 @@ class LearningAgent(object):
 
         _, _, self.train_net, adventage = build_network(self.observation_shape, action_space.n)
 
-        self.train_net.compile(optimizer=RMSprop(epsilon=0.1, rho=0.99),
+        self.train_net.compile(optimizer='adam',
                                loss=[value_loss(), policy_loss(adventage, self.beta)])
 
         self.pol_loss = deque(maxlen=25)
@@ -117,23 +128,28 @@ class LearningAgent(object):
         self.val_loss.append(loss[1])
         self.entropy.append(entropy)
         self.values.append(np.mean(values))
-        min_val, max_val, avg_val = min(self.values), max(self.values), np.mean(self.values)
-        print('\rFrames: %8d; Policy-Loss: %10.6f; Avg: %10.6f '
-              '--- Value-Loss: %10.6f; Avg: %10.6f '
-              '--- Entropy: %7.6f; Avg: %7.6f '
-              '--- V-value; Min: %6.3f; Max: %6.3f; Avg: %6.3f' % (
-                  self.counter,
-                  loss[2], np.mean(self.pol_loss),
-                  loss[1], np.mean(self.val_loss),
-                  entropy, np.mean(self.entropy),
-                  min_val, max_val, avg_val), end='')
+        if False:
+            min_val, max_val, avg_val = min(self.values), max(self.values), np.mean(self.values)
+            print('\rFrames: %8d; Policy-Loss: %10.6f; Avg: %10.6f '
+                    '--- Value-Loss: %10.6f; Avg: %10.6f '
+                    '--- Entropy: %7.6f; Avg: %7.6f '
+                    '--- V-value; Min: %6.3f; Max: %6.3f; Avg: %6.3f' % (
+                        self.counter,
+                        loss[2], np.mean(self.pol_loss),
+                        loss[1], np.mean(self.val_loss),
+                        entropy, np.mean(self.entropy),
+                        min_val, max_val, avg_val), end='')
         # -----
         self.swap_counter -= frames
         if self.swap_counter < 0:
             self.swap_counter += self.swap_freq
             return True
         return False
-
+    
+    def save_model(self):
+        print("Saving the model")
+        self.train_net.save_weights(model_file, overwrite=True)
+        print("Model saved")
 
 def learn_proc(mem_queue, weight_dict, get_enviroment):
     import os
@@ -142,17 +158,17 @@ def learn_proc(mem_queue, weight_dict, get_enviroment):
     os.environ['THEANO_FLAGS'] = 'floatX=float32,device=gpu,nvcc.fastmath=False,lib.cnmem=0.3,' + \
                                  'compiledir=th_comp_learn'
 
+    # -----
+    save_freq = 10000
+    learning_rate = 0.0001
+    batch_size = 32
+    checkpoint = 0
+    steps = 99000000
+    # -----
+    env = get_enviroment()
+    state_size = env.observation_space.shape
+    agent = LearningAgent(env.action_space, state_size, batch_size=batch_size)
     try:         
-        # -----
-        save_freq = 100 
-        learning_rate = 0.0001
-        batch_size = 32
-        checkpoint = 0
-        steps = 99000000
-        # -----
-        env = get_enviroment()
-        state_size = env.observation_space.shape
-        agent = LearningAgent(env.action_space, state_size, batch_size=batch_size)
         # -----
         if Path(model_file).exists():
             print(' %5d> Loading weights from file' % (pid,))
@@ -184,7 +200,7 @@ def learn_proc(mem_queue, weight_dict, get_enviroment):
             save_counter -= 1
             if save_counter < 0:
                 save_counter += save_freq
-                agent.train_net.save_weights(model_file, overwrite=True)
+                agent.save_model()
     except Exception:
         print ('learn_proc Exception')
         exc_type, exc_value, exc_tb = sys.exc_info()
@@ -286,8 +302,8 @@ def generate_experience_proc(mem_queue, weight_dict, no, generator):
     agent = ActingAgent(env, n_step=5)
 
     if frames > 0:
-        print(' %5d> Loaded weights from file' % (pid,))
         agent.load_net.load_weights(model_file)
+        print(' %5d> Loaded weights from file' % (pid,))
     else:
         import time
         while 'weights' not in weight_dict:
@@ -326,10 +342,9 @@ def generate_experience_proc(mem_queue, weight_dict, no, generator):
                 #done = done or op_count >= 100
                 op_last = action
                 # -----
-                mean = np.mean(avg_score)
-                if frames % 2000 == 0 and mean > 0:
+                if frames % 2000 == 0:
                     print('%5d> Best: %6.3f; Avg: %6.3f; Max: %6.3f' % (
-                        pid, best_score, mean, np.max(avg_score)))
+                        pid, best_score, np.mean(avg_score), np.max(avg_score)))
                 if frames % batch_size == 0:
                     update = weight_dict.get('update', 0)
                     if update > last_update:
