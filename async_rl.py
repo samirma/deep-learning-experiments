@@ -11,9 +11,7 @@ import traceback
 import sys
 from numpy import argmax
 from pathlib import Path
-from keras.layers.recurrent import LSTM
-from keras.layers import Bidirectional
-from keras.models import Sequential
+
 
 game = "trade"
 model_file = 'save_model/model-trade.h5'
@@ -25,20 +23,7 @@ def build_network(input_shape, output_shape):
     dropout_rate = 0.25
 
     state = Input(shape=input_shape)
-
-    window_size = 10
-
-    h = Bidirectional(LSTM(window_size, return_sequences=True), input_shape=(window_size, state.shape[-1]),)(h)
-    h = Dropout(dropout_rate)(h)
-
-    #Second recurrent layer with dropout
-    h = Bidirectional(LSTM((window_size*2), return_sequences=True))(h)
-    h = Dropout(dropout_rate)(h)
-
-    #Third recurrent layer
-    h = Bidirectional(LSTM(window_size, return_sequences=False))(h)
-
-    h = Dense(128, activation='relu')(h)
+    h = Dense(input_shape[1]*input_shape[0], activation='relu')(state)
     h = Dropout(dropout_rate)(h)
     h = Flatten()(h)
     h = Dense(128*3, activation='relu')(h)
@@ -47,11 +32,26 @@ def build_network(input_shape, output_shape):
     h = Dropout(dropout_rate)(h)
     h = Dense(128, activation='relu')(h)
     h = Dropout(dropout_rate)(h)
-    h = Dense(64, activation='relu')(h)
-    h = Dropout(dropout_rate)(h)
 
-    value = Dense(1, activation='linear', name='value')(h)
-    policy = Dense(output_shape, activation='softmax', name='policy')(h)
+    value = Dense(128, activation='relu')(h)
+    value = Dropout(dropout_rate)(value)
+    value = Dense(64, activation='relu')(value)
+    value = Dropout(dropout_rate)(value)
+    value = Dense(64, activation='relu')(value)
+    value = Dropout(dropout_rate)(value)
+    value = Dense(32, activation='relu')(value)
+    value = Dropout(dropout_rate)(value)
+    value = Dense(1, activation='linear', name='value')(value)
+
+    policy = Dense(128, activation='relu')(h)
+    policy = Dropout(dropout_rate)(policy)
+    policy = Dense(64, activation='relu')(policy)
+    policy = Dropout(dropout_rate)(policy)
+    policy = Dense(64, activation='relu')(policy)
+    policy = Dropout(dropout_rate)(policy)
+    policy = Dense(32, activation='relu')(policy)
+    policy = Dropout(dropout_rate)(policy)
+    policy = Dense(output_shape, activation='softmax', name='policy')(policy)
 
     value_network = Model(inputs=state, outputs=value)
     policy_network = Model(inputs=state, outputs=policy)
