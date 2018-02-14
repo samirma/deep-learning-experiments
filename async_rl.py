@@ -11,7 +11,7 @@ import traceback
 import sys
 from numpy import argmax
 from pathlib import Path
-
+import random
 
 game = "trade"
 model_file = 'save_model/model-trade.h5'
@@ -19,6 +19,8 @@ model_file = 'save_model/model-trade.h5'
 def build_network(input_shape, output_shape):
     from keras.models import Model
     from keras.layers import Input, Conv2D, Flatten, Dense, Dropout
+    from keras.layers.recurrent import LSTM
+    from keras.layers import Bidirectional
     # -----
     dropout_rate = 0.25
 
@@ -89,7 +91,7 @@ class LearningAgent(object):
         # -----
         
         self.input_depth = 1
-        self.past_range = 20
+        self.past_range = 1
         self.observation_shape = (self.input_depth * self.past_range,) + observation_shape
         self.batch_size = batch_size
         self.beta = 0.01
@@ -214,7 +216,7 @@ class ActingAgent(object):
         action_space = env.action_space
         
         self.input_depth = 1
-        self.past_range = 20
+        self.past_range = 1
         self.observation_shape = (self.input_depth * self.past_range,) + env.observation_space.shape
 
         #print("pre build_network" , action_space, self.observation_shape)
@@ -333,7 +335,7 @@ def generate_experience_proc(mem_queue, weight_dict, no, generator):
                 action = agent.choose_action()
                 observation, reward, done, info = env.step(action)
                 #print(info)
-                episode_reward += env.total_profite
+                episode_reward += reward
                 best_score = max(best_score, episode_reward)
                 # -----
                 agent.sars_data(action, reward, observation, done, mem_queue)

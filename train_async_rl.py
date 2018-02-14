@@ -13,7 +13,7 @@ from collections import deque
 
 
 
-stage_length_var = 10
+stage_length_var = 30
 def get_enviroment():
     return TraderEnv(DataGenerator(random=True, first_index=1000), stage_history_length=stage_length_var)
 

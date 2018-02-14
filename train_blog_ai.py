@@ -17,10 +17,10 @@ stage_length_var = 10
 def get_enviroment():
         chance = (random.randint(1,100))
 
-        if chance < 20:
-            return TraderEnv(DataGenerator(random=False, first_index=1000), stage_history_length=stage_length_var)
+        if chance > 50:
+            return TraderEnv(DataGenerator(random=False, first_index=10000), stage_history_length=stage_length_var)
         else:
-            return TraderEnv(DataGenerator(random=True, first_index=1000), stage_history_length=stage_length_var)
+            return TraderEnv(DataGenerator(random=True, first_index=10000), stage_history_length=stage_length_var)
 
 env = get_enviroment()
 
