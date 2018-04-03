@@ -3,7 +3,7 @@ from keras.preprocessing import sequence
 from keras.models import Sequential
 from keras.layers import LSTM, GRU
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, Dropout, Activation, Flatten, Convolution1D
+from keras.layers import Dense, Dropout, Activation, Flatten, Bidirectional
 from keras.datasets import imdb
 from keras.utils import np_utils
 from keras.layers.normalization import BatchNormalization
@@ -13,10 +13,10 @@ class NeuralNetwork(object):
     def modelNL(self):
         model = Sequential() 
         
-        hidden = self.features
+        hidden = 100
 
-        model.add(GRU(hidden, return_sequences=True, activation='tanh', input_shape=(self.seq_lenght, self.features)))
-        model.add(GRU(hidden, return_sequences=False, activation='tanh'))
+        model.add(GRU(hidden, return_sequences=True, activation='relu', input_shape=(self.seq_lenght, self.features)))
+        model.add(Bidirectional(GRU(hidden, return_sequences=False, activation='tanh')))
         
         model.add(Dense(128, activation='relu'))
         model.add(Dropout(.2))
@@ -31,7 +31,7 @@ class NeuralNetwork(object):
         
         model.add(Activation('softmax'))
 
-        model.compile(loss='mean_squared_error', optimizer='adagrad', metrics=['mae', 'acc'])
+        model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=['mae', 'acc'])
         
         model.summary()
         
