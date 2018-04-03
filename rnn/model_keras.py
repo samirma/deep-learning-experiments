@@ -31,7 +31,7 @@ class NeuralNetwork(object):
         
         model.add(Activation('softmax'))
 
-        model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['mae', 'acc'])
+        model.compile(loss='mean_squared_error', optimizer='adagrad', metrics=['mae', 'acc'])
         
         model.summary()
         
