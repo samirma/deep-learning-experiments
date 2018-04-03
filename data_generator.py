@@ -4,8 +4,8 @@ import io
 import random
 
 class DataGenerator:
-    def __init__(self, random=True, first_index=0):
-        self.base_dir = "stock_data/"
+    def __init__(self, random=True, first_index=0, base_dir = "stock_data/"):
+        self.base_dir = base_dir
         self.files = os.listdir(self.base_dir)
         self.files.sort()
         self.steps = len(self.files)
@@ -14,13 +14,19 @@ class DataGenerator:
         self.is_random = random
         self.index = first_index
 
-    def next(self):
-        #print("next %s %s %s" % (self.index, self.steps, self.has_next()))
-        file_path = self.base_dir + self.files[self.index]
+    def get_from_index(self, index):
+        file_path = self.base_dir + self.files[index]
         f = io.open(file_path, mode="r", encoding="utf-8")
         raw = f.read()
-        self.index += 1
         return json.loads(raw)
+        
+    def next(self, index = -1):
+        #print("next %s %s %s" % (self.index, self.steps, self.has_next()))
+        if index == -1:
+            index = self.index
+        jsonResult = self.get_from_index(index)
+        self.index += 1
+        return jsonResult
     
     def rewind(self):
         if self.is_random:
