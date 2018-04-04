@@ -15,7 +15,7 @@ class NeuralNetwork(object):
         
         hidden = 100
 
-        model.add(GRU(hidden*2, return_sequences=True, activation='relu', input_shape=(self.seq_lenght, self.features)))
+        model.add(GRU(hidden, return_sequences=True, activation='relu', input_shape=(self.seq_lenght, self.features)))
         model.add(GRU(50, return_sequences=False, activation='relu'))
         
         model.add(Dense(128, activation='relu'))
@@ -27,7 +27,7 @@ class NeuralNetwork(object):
         
         #model.add(Flatten())
         
-        model.add(Dense(self.target, activation='relu'))
+        model.add(Dense(self.target))
         
         model.add(Activation('softmax'))
 
