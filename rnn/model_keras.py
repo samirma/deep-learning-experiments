@@ -15,14 +15,14 @@ class NeuralNetwork(object):
         
         hidden = 100
 
-        model.add(GRU(hidden, return_sequences=True, activation='relu', input_shape=(self.seq_lenght, self.features)))
-        model.add(Bidirectional(GRU(hidden, return_sequences=False, activation='tanh')))
+        model.add(GRU(hidden*2, return_sequences=True, activation='relu', input_shape=(self.seq_lenght, self.features)))
+        model.add(GRU(50, return_sequences=False, activation='relu'))
         
         model.add(Dense(128, activation='relu'))
         model.add(Dropout(.2))
-        model.add(Dense(64, activation='relu'))
+        model.add(Dense(128, activation='relu'))
         model.add(Dropout(.2))
-        model.add(Dense(32, activation='relu'))
+        model.add(Dense(64, activation='relu'))
         model.add(Dropout(.2))
         
         #model.add(Flatten())
@@ -32,8 +32,6 @@ class NeuralNetwork(object):
         model.add(Activation('softmax'))
 
         model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=['mae', 'acc'])
-        
-        model.summary()
         
         return model
     
