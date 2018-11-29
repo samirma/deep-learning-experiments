@@ -43,9 +43,9 @@ class NeuralNetwork(object):
         self.lr = learning_rate
         self.model = self.modelNL()
     
-    def train(self, X, Y, epochs=150):
+    def train(self, X, Y, epochs=100, validation_split=0.3):
         # Fit the model
-        self.model.fit(X, Y, epochs=epochs, validation_split=0.3,  verbose=1)
+        self.model.fit(X, Y, epochs=epochs, validation_split=validation_split,  verbose=1)
 
     
     def run(self, inputs_list):
